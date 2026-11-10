@@ -11,6 +11,9 @@ const store = {
   del() { try { localStorage.removeItem(SAVE); } catch (e) { /* idem */ } }
 };
 const save = () => { if (G) store.set(G); };
+const TEMA_KEY = 'prancheta2.tema';
+function setTema(v) { U.tema = v === 'claro' || v === 'escuro' ? v : ''; if (U.tema) document.documentElement.dataset.tema = U.tema; else delete document.documentElement.dataset.tema; }
+try { setTema(localStorage.getItem(TEMA_KEY)); } catch (e) { setTema(''); }
 let tT = 0;
 function toast(t) { const el = $('#toast'); el.textContent = t; el.classList.add('on'); clearTimeout(tT); tT = setTimeout(() => el.classList.remove('on'), 2600); }
 
@@ -180,6 +183,7 @@ VIEW.clube = () => {
     h += `<div class="card stack"><div class="head"><h2><span>Diretoria</span></h2><small>meta: até ${G.board.obj.pos}º</small></div><b>${G.board.obj.t}</b><div class="meter ${c < 30 ? 'low' : c >= 70 ? 'good' : ''}"><i style="width:${c}%"></i></div><div>${kv('Confiança', Math.round(c) + '%')}${kv('Reputação do clube', Math.round(m.rep) + ' de 100')}${kv('Temporada', G.season + 'ª')}</div><p class="muted">Reputação atrai patrocínio, público e jogadores melhores.</p></div>`;
     h += `<div class="card"><div class="head"><h2><span>Sala de troféus</span></h2></div>${G.trophies.length ? G.trophies.map(t => `<p class="hand">★ ${esc(t)}</p>`).join('') : '<p class="muted">Vazia por enquanto.</p>'}</div>`;
     h += `<div class="card flat"><div class="head" style="padding:14px 14px 0;margin:0"><h2><span>Histórico</span></h2></div>${G.hist.length ? `<table><tr><th class="l" style="padding-left:14px">Ano</th><th>Divisão</th><th>Posição</th><th>Pontos</th></tr>${G.hist.map(x => `<tr><td class="l" style="padding-left:14px">${x.year}</td><td>${DIV_N[x.div]}</td><td>${x.pos}º</td><td>${x.pts}</td></tr>`).join('')}</table>` : '<p class="muted" style="padding:14px">A primeira temporada ainda está em andamento.</p>'}</div>`;
+    h += `<div class="card stack"><div class="head"><h2><span>Aparência</span></h2></div><div class="seg inpaper">${[['', 'Automático'], ['claro', 'Claro'], ['escuro', 'Escuro']].map(([v, l]) => `<button class="${U.tema === v ? 'on' : ''}" data-a="tema" data-v="${v}">${l}</button>`).join('')}</div><p class="muted">Automático segue o tema do seu aparelho.</p></div>`;
     h += '<button class="btn ghost" style="color:var(--chalk);box-shadow:inset 0 0 0 1.5px var(--chalk-2)" data-a="wipe">Encerrar carreira e começar outra</button><p class="muted" style="color:var(--chalk-2)">O jogo salva sozinho neste navegador a cada semana.</p>';
   }
   return h;
@@ -215,7 +219,7 @@ VIEW.tab = () => {
     h += CUP_N.map((n, r) => `<div class="card flat"><div class="head" style="padding:14px 14px 0;margin:0"><h2><span>${n}</span></h2></div>${G.cup.rounds[r] ? G.cup.rounds[r].map(t => fxRow(t.h, t.a, t.w != null ? [t.gh, t.ga] : null, t.pso)).join('') : '<p class="muted" style="padding:14px">A definir.</p>'}</div>`).join('');
   } else if (s === 'art') {
     const top = G.clubs.filter(c => c.div === U.div).flatMap(c => c.players.map(p => [p, c])).filter(x => x[0].gl > 0).sort((a, b) => b[0].gl - a[0].gl || a[0].ap - b[0].ap).slice(0, 15);
-    h += divSeg + `<div class="card flat">${top.map(([p, c], i) => prow(p, { m: `<span class="mag" style="--c:var(--paper-2);font-size:17px">${i + 1}º</span>`, sub: `${esc(c.name)} · ${POS[p.pos]}`, r: `<span class="val num">${p.gl}</span>` })).join('') || '<p class="muted" style="padding:14px">Ainda sem gols na temporada.</p>'}</div>`;
+    h += divSeg + `<div class="card flat">${top.map(([p, c], i) => prow(p, { m: `<span class="mag rank">${i + 1}º</span>`, sub: `${esc(c.name)} · ${POS[p.pos]}`, r: `<span class="val num">${p.gl}</span>` })).join('') || '<p class="muted" style="padding:14px">Ainda sem gols na temporada.</p>'}</div>`;
   } else {
     h += `<div class="card flat">${myGames().map(g => { if (!g.f) return `<div class="fx"><span class="muted">${g.e.t === 'C' ? CUP_N[g.e.r] : ''}</span><b>—</b><span class="muted">${g.i < G.ci ? 'eliminado' : 'se avançar'}</span></div>`; return `<div style="${g.i === G.ci ? 'box-shadow:inset 5px 0 0 var(--magnet)' : ''}"><div class="muted" style="padding:8px 14px 0;font-size:11.5px;font-weight:800;letter-spacing:.06em;text-transform:uppercase">${g.e.t === 'L' ? 'Rodada ' + (g.e.r + 1) : 'Copa · ' + CUP_N[g.e.r]}</div>${fxRow(g.f[0], g.f[1], g.r ? [g.r[2], g.r[3]] : null, g.r && g.r[4]).replace('class="fx me"', 'class="fx" style="border:0;padding-top:2px"')}</div>`; }).join('')}</div>`;
   }
@@ -261,13 +265,13 @@ function negSheet() {
 }
 function clubSheet(c) {
   const list = c.players.slice().sort((a, b) => estOvr(b) - estOvr(a));
-  openSheet(`<div class="rowx" style="margin-bottom:10px;padding-right:36px">${crest(c, 52)}<div class="grow"><h2>${esc(c.name)}</h2><div class="muted">${DIV_N[c.div]} · ${posOf(c)}º · ${c.form} · ${STYLES[c.style].n}</div><div>${formDots(c)}</div></div></div><div class="card flat" style="box-shadow:none;background:#fff">${list.map(p => prow(p, { r: c.id ? '' : undefined })).join('')}</div>`);
+  openSheet(`<div class="rowx" style="margin-bottom:10px;padding-right:36px">${crest(c, 52)}<div class="grow"><h2>${esc(c.name)}</h2><div class="muted">${DIV_N[c.div]} · ${posOf(c)}º · ${c.form} · ${STYLES[c.style].n}</div><div>${formDots(c)}</div></div></div><div class="card flat" style="box-shadow:none;background:var(--raise)">${list.map(p => prow(p, { r: c.id ? '' : undefined })).join('')}</div>`);
 }
 function pickSheet(k) {
   const m = me(), role = slotRoles(m.form)[k], cur = pl(m.lineup[k]);
   const sc = p => ovrIn(p, role) * (0.8 + 0.2 * p.en / 100);
   const list = m.players.filter(p => p !== cur).sort((a, b) => avail(b) - avail(a) || sc(b) - sc(a));
-  openSheet(`<h2 style="padding-right:36px">${POS_N[role]}</h2><p class="muted" style="margin:4px 0 10px">O número mostra o nível do jogador nesta função.</p>${cur ? `<div class="card flat" style="box-shadow:none;background:#fff7d1;margin-bottom:10px">${prow(cur, { m: mag(role, Math.round(ovrIn(cur, role))), sub: `Titular agora · natural: ${POS[cur.pos]} · toque para ver a ficha` })}</div>` : ''}<div class="card flat" style="box-shadow:none;background:#fff">${list.map(p => { const j = m.lineup.indexOf(p.id); return prow(p, { a: avail(p) ? 'put' : 'none', x: `data-k="${k}"`, off: !avail(p), m: mag(role, Math.round(ovrIn(p, role))), sub: `${POS[p.pos]}${p.pos !== role && p.tr !== 'coringa' ? ' (improvisado)' : ''} · ${p.age} anos · ${j >= 0 ? 'titular, troca de lugar' : 'reserva'}` }); }).join('')}</div>`);
+  openSheet(`<h2 style="padding-right:36px">${POS_N[role]}</h2><p class="muted" style="margin:4px 0 10px">O número mostra o nível do jogador nesta função.</p>${cur ? `<div class="card flat" style="box-shadow:none;background:var(--hl);margin-bottom:10px">${prow(cur, { m: mag(role, Math.round(ovrIn(cur, role))), sub: `Titular agora · natural: ${POS[cur.pos]} · toque para ver a ficha` })}</div>` : ''}<div class="card flat" style="box-shadow:none;background:var(--raise)">${list.map(p => { const j = m.lineup.indexOf(p.id); return prow(p, { a: avail(p) ? 'put' : 'none', x: `data-k="${k}"`, off: !avail(p), m: mag(role, Math.round(ovrIn(p, role))), sub: `${POS[p.pos]}${p.pos !== role && p.tr !== 'coringa' ? ' (improvisado)' : ''} · ${p.age} anos · ${j >= 0 ? 'titular, troca de lugar' : 'reserva'}` }); }).join('')}</div>`);
 }
 function confirmSheet(title, text, act, v, label, cls = '') { openSheet(`<h2 style="padding-right:36px">${title}</h2><p style="margin:10px 0 14px">${text}</p><div class="btns"><button class="btn ${cls}" data-a="${act}" data-v="${v}">${label}</button><button class="btn ghost" data-a="close">Cancelar</button></div>`); }
 
@@ -351,15 +355,15 @@ function boardSheet() {
   let h = `<h2 style="padding-right:36px"><span>Prancheta</span> · ${M.min}'</h2><div class="stack" style="margin-top:10px"><div><label>Postura</label><div class="seg inpaper">${Object.keys(MENT).map(k => `<button class="${S.ment === k ? 'on' : ''}" data-a="mMent" data-v="${k}">${MENT[k].n}</button>`).join('')}</div><p class="muted" style="margin-top:4px">${MENT[S.ment].d}.</p></div>`;
   if (U.subOut != null) {
     const o = S.on[U.subOut], b = benchOf(S).sort((x, y) => ovrIn(y, o.role) - ovrIn(x, o.role));
-    h += `<h3>Quem entra no lugar de ${esc(last(o.p.n))}?</h3><div class="card flat" style="box-shadow:none;background:#fff">${b.map(p => prow(p, { a: 'mIn', m: mag(o.role, Math.round(ovrIn(p, o.role))), sub: `${POS[p.pos]} · ${p.age} anos` })).join('') || '<p class="muted" style="padding:14px">Banco vazio.</p>'}</div><button class="btn ghost" data-a="mOut" data-i="-1">Voltar</button>`;
+    h += `<h3>Quem entra no lugar de ${esc(last(o.p.n))}?</h3><div class="card flat" style="box-shadow:none;background:var(--raise)">${b.map(p => prow(p, { a: 'mIn', m: mag(o.role, Math.round(ovrIn(p, o.role))), sub: `${POS[p.pos]} · ${p.age} anos` })).join('') || '<p class="muted" style="padding:14px">Banco vazio.</p>'}</div><button class="btn ghost" data-a="mOut" data-i="-1">Voltar</button>`;
   } else {
-    h += `<h3>Substituições: restam ${left}</h3><div class="card flat" style="box-shadow:none;background:#fff">${act.map(([o, i]) => prow(o.p, { a: left ? 'mOut' : 'none', x: `data-i="${i}"`, m: mag(o.role, Math.round(ovrIn(o.p, o.role))), sub: `${POS[o.role]}${o.yc ? ' · 🟨' : ''}${o.g ? ' · ⚽'.repeat(1) + (o.g > 1 ? '×' + o.g : '') : ''}`, r: `<span class="mini"><span>${Math.round(o.en)}</span>${bar(o.en, enCls(o.en))}</span>` })).join('')}</div><p class="muted">Toque em quem sai. Jogador cansado rende menos e machuca mais.</p>`;
+    h += `<h3>Substituições: restam ${left}</h3><div class="card flat" style="box-shadow:none;background:var(--raise)">${act.map(([o, i]) => prow(o.p, { a: left ? 'mOut' : 'none', x: `data-i="${i}"`, m: mag(o.role, Math.round(ovrIn(o.p, o.role))), sub: `${POS[o.role]}${o.yc ? ' · 🟨' : ''}${o.g ? ' · ⚽'.repeat(1) + (o.g > 1 ? '×' + o.g : '') : ''}`, r: `<span class="mini"><span>${Math.round(o.en)}</span>${bar(o.en, enCls(o.en))}</span>` })).join('')}</div><p class="muted">Toque em quem sai. Jogador cansado rende menos e machuca mais.</p>`;
   }
   openSheet(h + '<button class="btn wide" data-a="close">Voltar ao jogo</button></div>');
 }
 function injSheet() {
   const M = U.M, { S, o } = M.pend, b = benchOf(S).sort((x, y) => ovrIn(y, o.role) - ovrIn(x, o.role));
-  openSheet(`<h2 style="padding-right:36px"><span>Lesão</span></h2><p class="hand red" style="margin:8px 0">${esc(o.p.n)} não volta. Fora por ${plural(o.p.inj, 'semana', 'semanas')}.</p><h3>Quem entra?</h3><div class="card flat" style="box-shadow:none;background:#fff;margin-top:8px">${b.map(p => prow(p, { a: 'injIn', m: mag(o.role, Math.round(ovrIn(p, o.role))), sub: `${POS[p.pos]} · ${p.age} anos` })).join('')}</div>`);
+  openSheet(`<h2 style="padding-right:36px"><span>Lesão</span></h2><p class="hand red" style="margin:8px 0">${esc(o.p.n)} não volta. Fora por ${plural(o.p.inj, 'semana', 'semanas')}.</p><h3>Quem entra?</h3><div class="card flat" style="box-shadow:none;background:var(--raise);margin-top:8px">${b.map(p => prow(p, { a: 'injIn', m: mag(o.role, Math.round(ovrIn(p, o.role))), sub: `${POS[p.pos]} · ${p.age} anos` })).join('')}</div>`);
 }
 
 // ---------- pós-jogo, temporada, demissão ----------
@@ -455,6 +459,7 @@ const ACT = {
   // clube
   price(d) { G.price = clamp(G.price + +d.v, 10, 200); done(); },
   fac(d) { const f = FAC.find(x => x.id === d.id), l = G.fac[f.id]; if (l >= 4 || G.money < f.cost[l]) return; spend('Obras', f.cost[l]); G.fac[f.id]++; done(f.n + ' ampliado.'); },
+  tema(d) { setTema(d.v); try { if (U.tema) localStorage.setItem(TEMA_KEY, U.tema); else localStorage.removeItem(TEMA_KEY); } catch (e) { /* vale só nesta visita */ } render(); },
   wipe() { confirmSheet('Encerrar esta carreira?', 'O jogo salvo será apagado. Não dá para desfazer.', 'wipeOk', 1, 'Apagar e recomeçar', 'red'); },
   wipeOk() { closeSheet(); store.del(); G = null; ACT.newCareer(); },
   // partida
