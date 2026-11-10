@@ -24,15 +24,28 @@ const POS_N = ['Goleiro', 'Defensor', 'Meia', 'Atacante'];
 const KEY = ['g', 'd', 'm', 'a'];
 const ATTR_N = { g: 'Goleiro', d: 'Defesa', m: 'Criação', a: 'Ataque' };
 const OVW = [null, { d: 0.7, m: 0.2, a: 0.1 }, { d: 0.25, m: 0.5, a: 0.25 }, { d: 0.1, m: 0.2, a: 0.7 }];
-const FORMS = {
-  '4-4-2': { n: [4, 4, 2], def: 1, mid: 1, atk: 1 },
-  '4-3-3': { n: [4, 3, 3], def: 1, mid: 0.94, atk: 1.07 },
-  '4-5-1': { n: [4, 5, 1], def: 1.02, mid: 1.07, atk: 0.91 },
-  '3-5-2': { n: [3, 5, 2], def: 0.94, mid: 1.07, atk: 1 },
-  '3-4-3': { n: [3, 4, 3], def: 0.93, mid: 1, atk: 1.08 },
-  '5-3-2': { n: [5, 3, 2], def: 1.08, mid: 0.94, atk: 0.98 },
-  '5-4-1': { n: [5, 4, 1], def: 1.09, mid: 1, atk: 0.9 }
-};
+// Formação livre: cada titular tem um ímã (x, y em % do quadro; y 0 = ataque, 100 = próprio gol).
+// A faixa onde o ímã está define a função; a quantidade em cada faixa define o bônus do setor.
+const PRESETS = ['4-4-2', '4-3-3', '4-5-1', '3-5-2', '3-4-3', '5-3-2', '5-4-1'];
+const DEFM = [0.6, 0.72, 0.84, 0.93, 1, 1.08, 1.13, 1.16, 1.18, 1.19, 1.2];
+const MIDM = [0.6, 0.74, 0.86, 0.94, 1, 1.07, 1.12, 1.15, 1.17, 1.18, 1.19];
+const ATKM = [0.72, 0.9, 1, 1.07, 1.12, 1.15, 1.17, 1.18, 1.19, 1.2, 1.2];
+const ZONE = { dm: 56, ma: 30 };
+function presetSpots(name) {
+  const n = [1, ...name.split('-').map(Number)], ys = [90, 67, 43, 17], out = [];
+  for (let r = 0; r < 4; r++) for (let i = 0; i < n[r]; i++) {
+    const x = 50 + ((i + 1) / (n[r] + 1) * 100 - 50) * (n[r] >= 4 ? 1.16 : 1.05);
+    const y = ys[r] + (n[r] >= 5 ? (i % 2 ? 3.4 : -3.4) : n[r] === 4 ? (i === 0 || i === 3 ? -2.6 : 2.6) : 0);
+    out.push({ x: Math.round(x * 10) / 10, y: Math.round(y * 10) / 10 });
+  }
+  return out;
+}
+const roleAtY = y => (y >= ZONE.dm ? 1 : y >= ZONE.ma ? 2 : 3);
+const rolesOf = c => c.spots.map((sp, i) => (i === 0 ? 0 : roleAtY(sp.y)));
+const countsOf = roles => [1, 2, 3].map(r => roles.filter(x => x === r).length);
+const formName = c => countsOf(rolesOf(c)).join('-');
+// entrosamento efetivo: cada jogador que mudou de linha desde o último jogo custa 8 pontos
+function famNow(c) { const n = countsOf(rolesOf(c)), l = c.lastCnt || n; return Math.max(0, c.fam - 4 * (Math.abs(n[0] - l[0]) + Math.abs(n[1] - l[1]) + Math.abs(n[2] - l[2]))); }
 const STYLES = {
   eq: { n: 'Equilibrado', d: 'Sem bônus e sem ponto fraco. Nenhum estilo leva vantagem sobre ele.', def: 1, mid: 1, atk: 1, drain: 1, beats: '' },
   pr: { n: 'Pressão alta', d: 'Sufoca a saída de bola. Ganha o meio, mas cansa muito.', def: 0.97, mid: 1.07, atk: 1.01, drain: 1.3, beats: 'po' },
@@ -103,6 +116,7 @@ const BASES = [[76, 75, 74, 73, 72, 71, 70, 69, 68, 67], [66, 65, 64, 63, 62, 61
 let G = null;
 const PMAP = new Map();
 function reindex() {
+  for (const c of G.clubs) if (!c.spots) { c.spots = presetSpots(PRESETS.includes(c.form) ? c.form : '4-4-2'); c.form = formName(c); c.lastCnt = countsOf(rolesOf(c)); }
   PMAP.clear();
   for (const c of G.clubs) for (const p of c.players) PMAP.set(p.id, p);
   for (const p of G.free) PMAP.set(p.id, p);
@@ -190,7 +204,6 @@ const growBase = age => (age <= 19 ? 0.6 : age <= 21 ? 0.5 : age <= 23 ? 0.38 : 
 const decline = age => (age >= 31 ? 0.07 * (age - 30) : 0);
 
 // ---------- Escalação ----------
-const slotRoles = form => { const n = FORMS[form].n; return [0, ...Array(n[0]).fill(1), ...Array(n[1]).fill(2), ...Array(n[2]).fill(3)]; };
 function ensureSquad(c) {
   let guard = 0;
   while (guard++ < 12) {
@@ -204,19 +217,19 @@ function ensureSquad(c) {
 }
 function autoLineup(c) {
   ensureSquad(c);
-  const need = [1, ...FORMS[c.form].n], got = [[], [], [], []], used = new Set(), pairs = [];
+  const roles = rolesOf(c), need = [1, ...countsOf(roles)], got = [[], [], [], []], used = new Set(), pairs = [];
   for (const p of c.players) if (avail(p)) for (let r = 0; r < 4; r++) {
     pairs.push([p, r, ovrIn(p, r) * (0.8 + 0.2 * p.en / 100) - (r !== p.pos && p.tr !== 'coringa' ? 2 : 0)]);
   }
   pairs.sort((x, y) => y[2] - x[2]);
   for (const [p, r] of pairs) { if (used.has(p.id) || got[r].length >= need[r]) continue; used.add(p.id); got[r].push(p.id); }
-  c.lineup = got.flat();
+  c.lineup = roles.map(r => got[r].shift() || 0);
   return c.lineup;
 }
 function fixLineup(c) {
   ensureSquad(c);
   if (!c.lineup || c.lineup.length !== 11) return autoLineup(c);
-  const roles = slotRoles(c.form), keep = new Set();
+  const roles = rolesOf(c), keep = new Set();
   const ok = c.lineup.map(id => { const p = c.players.find(x => x.id === id); if (p && avail(p) && !keep.has(id)) { keep.add(id); return true; } return false; });
   for (let i = 0; i < 11; i++) if (!ok[i]) {
     const cand = c.players.filter(p => avail(p) && !keep.has(p.id)).sort((x, y) => ovrIn(y, roles[i]) - ovrIn(x, roles[i]))[0];
@@ -224,15 +237,17 @@ function fixLineup(c) {
   }
   return c.lineup;
 }
-function setFormation(c, f) {
-  if (c.form === f) return;
-  c.form = f; c.fam = Math.round(c.fam * 0.6);
-  autoLineup(c);
+function setFormation(c, f) { c.spots = presetSpots(f); c.form = f; autoLineup(c); }
+function moveSpot(c, i, x, y) {
+  const sp = c.spots[i];
+  if (i === 0) { sp.x = clamp(x, 36, 64); sp.y = clamp(y, 85, 96); }
+  else { sp.x = clamp(x, 6, 94); sp.y = clamp(y, 5, 81); }
+  c.form = formName(c);
 }
 function setStyle(c, s) { if (c.style === s) return; c.style = s; c.fam = Math.round(c.fam * 0.78); }
 // força "no papel" (elenco titular descansado, sem tática)
 function power(c) {
-  const roles = slotRoles(c.form);
+  const roles = rolesOf(c);
   const ids = c.lineup && c.lineup.length === 11 ? c.lineup : null;
   if (!ids) { const best = c.players.slice().sort((a, b) => ovr(b) - ovr(a)).slice(0, 11); return avg(best, ovr, 50); }
   return avg(ids.map((id, i) => [c.players.find(p => p.id === id), roles[i]]).filter(x => x[0]), x => ovrIn(x[0], x[1]), 50);
@@ -262,10 +277,10 @@ const last = n => n.split(' ').slice(-1)[0];
 
 function mkSide(c, home, user) {
   if (user) fixLineup(c); else autoLineup(c);
-  const roles = slotRoles(c.form);
+  const roles = rolesOf(c);
   return {
-    c, home, user, form: c.form, style: c.style, ment: c.ment || 'eq', fam: c.fam,
-    on: c.lineup.map((id, i) => ({ p: c.players.find(p => p.id === id), role: roles[i], en: 0, r: 6, g: 0, a: 0, yc: 0, out: false, t0: 0, t1: 90 })).filter(o => o.p),
+    c, home, user, form: c.form, cnt: countsOf(roles), style: c.style, ment: c.ment || 'eq', fam: famNow(c),
+    on: c.lineup.map((id, i) => ({ p: c.players.find(p => p.id === id), role: roles[i], i, en: 0, r: 6, g: 0, a: 0, yc: 0, out: false, t0: 0, t1: 90 })).filter(o => o.p),
     served: c.players.filter(p => p.sus > 0), usedIds: new Set(c.lineup),
     subs: 0, g: 0, sh: 0, sot: 0, pos: 0, boost: 1, s: null
   };
@@ -283,16 +298,16 @@ function newMatch(hc, ac, o = {}) {
   return M;
 }
 function sectorsOf(S, O) {
-  const f = FORMS[S.form], st = STYLES[S.style], mt = MENT[S.ment];
+  const n = S.cnt, st = STYLES[S.style], mt = MENT[S.ment];
   const act = S.on.filter(o => !o.out);
   const e = (o, k) => attrsIn(o.p, o.role)[k] * (0.72 + 0.28 * o.en / 100) * (0.95 + 0.1 * o.p.mo / 100);
-  const A = (r, k) => { const l = act.filter(o => o.role === r); const miss = Math.max(0, f.n[r - 1] - l.length); return l.length ? sum(l, o => e(o, k)) / (l.length + 0.5 * miss) : 25; };
+  const A = (r, k) => { const l = act.filter(o => o.role === r); const miss = Math.max(0, n[r - 1] - l.length); return l.length ? sum(l, o => e(o, k)) / (l.length + 0.5 * miss) : 25; };
   const gk = act.find(o => o.role === 0);
   const k = (0.94 + 0.08 * S.fam / 100) * (S.home ? 1.04 : 1) * S.boost * (st.beats && st.beats === O.style ? 1.06 : 1);
   return {
-    def: (0.75 * A(1, 'd') + 0.25 * A(2, 'd')) * f.def * st.def * mt.def * k,
-    mid: (0.15 * A(1, 'm') + 0.7 * A(2, 'm') + 0.15 * A(3, 'm')) * f.mid * st.mid * k,
-    atk: (0.25 * A(2, 'a') + 0.75 * A(3, 'a')) * f.atk * st.atk * mt.atk * k,
+    def: (0.75 * A(1, 'd') + 0.25 * A(2, 'd')) * DEFM[n[0]] * st.def * mt.def * k,
+    mid: (0.15 * A(1, 'm') + 0.7 * A(2, 'm') + 0.15 * A(3, 'm')) * MIDM[n[1]] * st.mid * k,
+    atk: (0.25 * A(2, 'a') + 0.75 * A(3, 'a')) * ATKM[n[2]] * st.atk * mt.atk * k,
     gk: gk ? e(gk, 'g') * (gk.p.tr === 'paredao' ? 1 : 1) : 18
   };
 }
@@ -309,9 +324,9 @@ function push(M, t, side, x, extra) { const e = Object.assign({ m: M.min, t, s: 
 function doSub(M, S, outE, pIn, why) {
   if (S.subs >= 5 || !pIn || outE.out) return false;
   outE.out = true; outE.t1 = M.min;
-  S.on.push({ p: pIn, role: outE.role, en: pIn.en, r: 6, g: 0, a: 0, yc: 0, out: false, t0: M.min, t1: 90 });
+  S.on.push({ p: pIn, role: outE.role, i: outE.i, en: pIn.en, r: 6, g: 0, a: 0, yc: 0, out: false, t0: M.min, t1: 90 });
   S.usedIds.add(pIn.id); S.subs++; M.dirty = true;
-  if (!M.silent) push(M, 'sub', S.home ? 'h' : 'a', `${why ? why + ' ' : ''}Sai ${last(outE.p.n)}, entra ${last(pIn.n)}.`);
+  if (!M.silent) push(M, 'sub', S.home ? 'h' : 'a', `${why ? why + ' ' : ''}Sai ${last(outE.p.n)}, entra ${last(pIn.n)}.`, { out: outE.p.id, inn: pIn.id });
   return true;
 }
 const bestSub = (S, role) => benchOf(S).sort((x, y) => ovrIn(y, role) * (0.8 + 0.2 * y.en / 100) - ovrIn(x, role) * (0.8 + 0.2 * x.en / 100))[0];
@@ -348,27 +363,27 @@ function chance(M, A, D) {
   if (r < p) {
     A.g++; A.sot++; sh.g++; sh.r += 1.1; if (as2) { as2.a++; as2.r += 0.6; }
     for (const o of D.on) if (!o.out) o.r -= o.role === 0 ? 0.35 : o.role === 1 ? 0.18 : 0.06;
-    push(M, 'gol', as, M.silent ? '' : say(type, names), { pid: sh.p.id, aid: as2 ? as2.p.id : 0, n: sh.p.n });
+    push(M, 'gol', as, M.silent ? '' : say(type, names), { k: type, pid: sh.p.id, aid: as2 ? as2.p.id : 0, n: sh.p.n });
     M.dirty = true;
   } else if (type === 'pen') {
     sh.r -= 0.5; if (gk) gk.r += 0.6; A.sot++;
-    push(M, 'def', as, M.silent ? '' : say('penx', names));
+    push(M, 'def', as, M.silent ? '' : say('penx', names), { k: type, pid: sh.p.id, aid: 0 });
   } else if (r < p + (1 - p) * 0.42) {
     A.sot++; sh.r += 0.1; if (gk) gk.r += 0.28;
-    push(M, 'def', as, M.silent ? '' : say('def', names));
+    push(M, 'def', as, M.silent ? '' : say('def', names), { k: type, pid: sh.p.id, aid: as2 ? as2.p.id : 0 });
   } else if (r < p + (1 - p) * 0.5) {
-    sh.r += 0.05; push(M, 'trave', as, M.silent ? '' : say('trave', names));
-  } else { sh.r -= 0.05; push(M, 'fora', as, M.silent ? '' : say('fora', names)); }
+    sh.r += 0.05; push(M, 'trave', as, M.silent ? '' : say('trave', names), { k: type, pid: sh.p.id, aid: as2 ? as2.p.id : 0 });
+  } else { sh.r -= 0.05; push(M, 'fora', as, M.silent ? '' : say('fora', names), { k: type, pid: sh.p.id, aid: as2 ? as2.p.id : 0 }); }
 }
 function card(M) {
   const S = R() < 0.5 * (M.h.style === 'pr' ? 1.2 : 1) / (0.5 * (M.h.style === 'pr' ? 1.2 : 1) + 0.5 * (M.a.style === 'pr' ? 1.2 : 1)) ? M.h : M.a;
   const o = wpick(S.on.filter(x => !x.out), x => [0.1, 1.3, 1, 0.6][x.role] * (x.p.tr === 'pavio' ? 2 : 1));
   if (!o) return;
   const side = S.home ? 'h' : 'a', nm = { p: last(o.p.n) };
-  if (R() < 0.035) { o.out = true; o.red = true; o.t1 = M.min; o.r -= 1.6; M.dirty = true; push(M, 'red', side, M.silent ? '' : say('red', nm)); return; }
+  if (R() < 0.035) { o.out = true; o.red = true; o.t1 = M.min; o.r -= 1.6; M.dirty = true; push(M, 'red', side, M.silent ? '' : say('red', nm), { pid: o.p.id }); return; }
   o.yc++; o.r -= 0.3;
-  if (o.yc >= 2) { o.out = true; o.red = true; o.t1 = M.min; o.r -= 1.2; M.dirty = true; push(M, 'red', side, M.silent ? '' : say('red2', nm)); }
-  else push(M, 'ya', side, M.silent ? '' : say('ya', nm));
+  if (o.yc >= 2) { o.out = true; o.red = true; o.t1 = M.min; o.r -= 1.2; M.dirty = true; push(M, 'red', side, M.silent ? '' : say('red2', nm), { pid: o.p.id }); }
+  else push(M, 'ya', side, M.silent ? '' : say('ya', nm), { pid: o.p.id });
 }
 function injury(M) {
   const S = R() < 0.5 ? M.h : M.a;
@@ -452,7 +467,7 @@ function finishMatch(M) {
     }
     if (mine) for (const p of S.c.players) if (!S.usedIds.has(p.id)) p.mo = clamp(p.mo + res * 2, 5, 100);
     S.c.hist.push(M.cup && win ? (win === S ? 'V' : 'D') : res > 0 ? 'V' : res < 0 ? 'D' : 'E'); if (S.c.hist.length > 5) S.c.hist.shift();
-    S.c.fam = Math.min(100, S.c.fam + 4);
+    S.c.fam = Math.min(100, S.fam + 4); S.c.lastCnt = S.cnt.slice();
     if (M.comp === 'L') { const t = S.c.t; t.j++; t.gp += S.g; t.gc += O.g; if (res > 0) { t.v++; t.pts += 3; } else if (res < 0) t.d++; else { t.e++; t.pts++; } }
   }
   M.res = { h: M.h.c.id, a: M.a.c.id, gh: M.h.g, ga: M.a.g, pso: M.pso ? M.pso.sc : null, w: win ? win.c.id : -1 };
@@ -537,7 +552,8 @@ function objective() {
   return rank <= 1 ? { pos: 1, t: 'Ser campeão' } : rank <= 4 ? { pos: 4, t: 'Terminar no G4' } : rank <= 6 ? { pos: 6, t: 'Ficar no meio da tabela' } : { pos: 8, t: 'Escapar do rebaixamento' };
 }
 function mkClub(id, info, div, base) {
-  const c = { id, name: info[0], abbr: info[1], c1: info[2], c2: info[3], crest: ri(0, 3), pat: ri(0, 3), div, base, rep: clamp(Math.round((base - 50) * 2.6 + 10), 12, 95), form: pick(Object.keys(FORMS)), style: pick(Object.keys(STYLES)), ment: 'eq', fam: ri(70, 95), players: [], lineup: [], hist: [], t: null };
+  const c = { id, name: info[0], abbr: info[1], c1: info[2], c2: info[3], crest: ri(0, 3), pat: ri(0, 3), div, base, rep: clamp(Math.round((base - 50) * 2.6 + 10), 12, 95), form: pick(PRESETS), style: pick(Object.keys(STYLES)), ment: 'eq', fam: ri(70, 95), players: [], lineup: [], hist: [], t: null };
+  c.spots = presetSpots(c.form); c.lastCnt = countsOf(rolesOf(c));
   c.players = mkSquad(base);
   return c;
 }
@@ -549,6 +565,7 @@ function newGame(o) {
     hist: [], trophies: [], flags: {}, over: null, review: null, tip: 0, last: null, lastWk: null
   };
   const u = { id: 0, name: o.name, abbr: o.abbr, c1: o.c1, c2: o.c2, crest: o.crest, pat: o.pat, div: 1, base: 0, rep: 34, form: '4-4-2', style: 'eq', ment: 'eq', fam: 60, players: [], lineup: [], hist: [], t: null };
+  u.spots = presetSpots(u.form); u.lastCnt = countsOf(rolesOf(u));
   u.players = mkSquad(60);
   for (const p of u.players) p.ctr = ri(2, 4);
   // um veterano de respeito e duas joias para o enredo começar

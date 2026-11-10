@@ -18,9 +18,22 @@
   <main id="main"></main>
   <nav id="tabs" aria-label="Seções do jogo"></nav>
 </div>
+<div id="stage">
+  <canvas id="gl" aria-label="Campo de futebol visto de cima"></canvas>
+  <div id="labels"></div>
+  <header id="mhud">
+    <div class="mscore"><span class="mt" id="hMe"></span><b class="num" id="hSm">0</b><em class="num" id="hClock">0'</em><b class="num" id="hSo">0</b><span class="mt" id="hOp"></span></div>
+    <div class="mcomp" id="hComp"></div>
+  </header>
+  <div id="ticker" aria-live="polite"></div>
+  <canvas id="mini" width="124" height="192" aria-hidden="true"></canvas>
+  <div id="gtoast"><div class="t" id="gtoastIn"><h2 id="gtoastH"></h2><p id="gtoastP"></p></div></div>
+  <footer id="mbar"></footer>
+</div>
 <div id="ov"></div>
 <div id="sheet"><div class="bg" data-a="close"></div><div id="sheetBox" role="dialog" aria-modal="true"></div></div>
 <div id="toast" role="status" aria-live="polite"></div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <script>
 /*__JS__*/
 </script>
