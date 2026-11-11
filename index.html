@@ -181,7 +181,7 @@ h3 { font-size: 12px; font-weight: 800; letter-spacing: 0.08em; text-transform: 
 .slot .en { width: 34px; height: 4px; border-radius: 2px; background: rgba(0, 0, 0, 0.4); overflow: hidden; }
 .slot .en i { display: block; height: 100%; background: #7df0a8; }
 .slot .en.mid i { background: var(--magnet); } .slot .en.low i { background: #ff7b72; }
-.slot .wr { position: absolute; top: -4px; right: 8px; width: 17px; height: 17px; border-radius: 50%; background: var(--pen-fill); color: #fff; font-size: 12px; font-weight: 800; line-height: 17px; text-align: center; }
+.slot .wr { display: none; position: absolute; top: -4px; right: 8px; width: 17px; height: 17px; border-radius: 50%; background: var(--pen-fill); color: #fff; font-size: 12px; font-weight: 800; line-height: 17px; text-align: center; }
 
 /* ---------- duelo de setores ---------- */
 .duels { display: flex; flex-direction: column; gap: 7px; }
@@ -360,6 +360,38 @@ tr.dn td.z::before { background: var(--pen); } tr.ch td.z::before { background: 
 .gseg .gb { background: none; min-width: 36px; padding: 0 4px; }
 .gseg .gb.on { background: #f1f5ec; }
 
+/* ---------- elenco agrupado, titulares, posições ---------- */
+.grp { display: flex; align-items: baseline; justify-content: space-between; padding: 12px 16px 6px; border-top: 1px solid var(--rule); background: var(--paper-2); }
+.grp:first-child { border-top: 0; }
+.head.pad + .grp { margin-top: 10px; }
+.grp span { font-size: 11.5px; font-weight: 800; letter-spacing: 0.1em; text-transform: uppercase; color: var(--ink-2); }
+.grp small { font-size: 11.5px; font-weight: 700; color: var(--ink-2); }
+.grp + .prow { border-top: 0; }
+.prow.st { background: linear-gradient(90deg, rgba(255, 210, 63, 0.16), rgba(255, 210, 63, 0) 70%); box-shadow: inset 4px 0 0 var(--magnet); }
+.xi { display: inline-grid; place-items: center; min-width: 34px; height: 22px; padding: 0 6px; border-radius: 6px; background: var(--magnet); color: var(--magnet-ink); font-family: var(--display); font-weight: 900; font-size: 15px; letter-spacing: 0.04em; vertical-align: middle; }
+.prow .right { display: flex; align-items: center; gap: 8px; }
+.pc { padding: 0 5px; border-radius: 5px; background: rgba(6, 28, 19, 0.72); color: #dff5e6; font-family: var(--display); font-weight: 800; font-size: 12.5px; letter-spacing: 0.06em; line-height: 16px; }
+.pc.bad { background: var(--pen-fill); color: #fff; }
+.pc.near { background: var(--magnet); color: var(--magnet-ink); }
+.slot.lift { z-index: 6; transform: translate(-50%, -58%) scale(1.14); }
+.slot.lift .mag { box-shadow: 0 0 0 3px var(--magnet), 0 14px 18px -6px rgba(0, 0, 0, 0.65), inset 0 -3px 0 rgba(0, 0, 0, 0.16); }
+.fitrow { display: grid; grid-template-columns: repeat(6, 1fr); gap: 4px; }
+.fitrow span { display: flex; flex-direction: column; align-items: center; padding: 5px 0; border-radius: 8px; background: var(--paper-2); font-family: var(--display); font-weight: 800; font-size: 18px; line-height: 1.05; }
+.fitrow b { font-size: 11px; letter-spacing: 0.06em; color: var(--ink-2); }
+.fitrow .same { background: var(--t-ok); color: var(--t-ok-ink); }
+.fitrow .near { background: var(--t-yel); color: var(--t-yel-ink); }
+.fitrow .other { color: var(--ink-2); }
+.ch { display: inline-block; margin-left: 6px; padding: 1px 7px; border-radius: 6px; font-size: 11px; letter-spacing: 0.04em; vertical-align: 1px; }
+.ch.c0 { background: var(--t-red); color: var(--t-red-ink); } .ch.c1 { background: var(--t-yel); color: var(--t-yel-ink); }
+.ch.c2 { background: var(--t-blue); color: var(--t-blue-ink); } .ch.c3 { background: var(--t-ok); color: var(--t-ok-ink); }
+.txr { display: flex; align-items: center; gap: 10px; padding: 10px 16px; border-top: 1px solid var(--rule); }
+.txr:first-child { border-top: 0; }
+.txr b { display: block; font-size: 14.5px; } .txr small { display: block; font-size: 12.5px; color: var(--ink-2); }
+.txr > b.num { font-family: var(--display); font-size: 18px; white-space: nowrap; }
+.txr .pos { color: var(--ok); } .txr .neg { color: var(--pen); }
+.txk { flex: none; width: 66px; text-align: center; padding: 3px 0; border-radius: 6px; font-size: 11px; font-weight: 800; letter-spacing: 0.05em; text-transform: uppercase; background: var(--paper-2); }
+.txk.in { background: var(--t-ok); color: var(--t-ok-ink); } .txk.out { background: var(--t-blue); color: var(--t-blue-ink); }
+
 </style>
 </head>
 <body>
@@ -411,24 +443,42 @@ const POS_N = ['Goleiro', 'Defensor', 'Meia', 'Atacante'];
 const KEY = ['g', 'd', 'm', 'a'];
 const ATTR_N = { g: 'Goleiro', d: 'Defesa', m: 'Criação', a: 'Ataque' };
 const OVW = [null, { d: 0.7, m: 0.2, a: 0.1 }, { d: 0.25, m: 0.5, a: 0.25 }, { d: 0.1, m: 0.2, a: 0.7 }];
+// Posições específicas. g = setor (0 goleiro, 1 defesa, 2 meio, 3 ataque).
+const SP = {
+  GOL: { g: 0, n: 'Goleiro' }, ZAG: { g: 1, n: 'Zagueiro' }, LD: { g: 1, n: 'Lateral-direito' }, LE: { g: 1, n: 'Lateral-esquerdo' },
+  VOL: { g: 2, n: 'Volante' }, MC: { g: 2, n: 'Meio-campista' }, MEI: { g: 2, n: 'Meia-atacante' }, MD: { g: 2, n: 'Meia-direita' }, ME: { g: 2, n: 'Meia-esquerda' },
+  PD: { g: 3, n: 'Ponta-direita' }, PE: { g: 3, n: 'Ponta-esquerda' }, CA: { g: 3, n: 'Centroavante' }
+};
+const SP_ORDER = ['GOL', 'ZAG', 'LD', 'LE', 'VOL', 'MC', 'MEI', 'MD', 'ME', 'PD', 'PE', 'CA'];
+const SP_NEAR = { ZAG: ['VOL', 'LD', 'LE'], LD: ['MD', 'ZAG', 'LE'], LE: ['ME', 'ZAG', 'LD'], VOL: ['ZAG', 'MC'], MC: ['VOL', 'MEI', 'MD', 'ME'], MEI: ['MC', 'CA'], MD: ['LD', 'PD', 'ME', 'MC'], ME: ['LE', 'PE', 'MD', 'MC'], PD: ['MD', 'PE', 'CA'], PE: ['ME', 'PD', 'CA'], CA: ['MEI', 'PD', 'PE'] };
+const SP_PICK = [['GOL'], ['ZAG', 'ZAG', 'LD', 'LE'], ['VOL', 'MC', 'MC', 'MEI', 'MD', 'ME'], ['CA', 'CA', 'PD', 'PE']];
+// fator sobre o nível natural: mesma posição, posição vizinha, mesmo setor, outro setor
+const FIT_N = { same: 1, near: 0.93, sector: 0.86, other: 0.76 };
 // Formação livre: cada titular tem um ímã (x, y em % do quadro; y 0 = ataque, 100 = próprio gol).
 // A faixa onde o ímã está define a função; a quantidade em cada faixa define o bônus do setor.
-const PRESETS = ['4-4-2', '4-3-3', '4-5-1', '3-5-2', '3-4-3', '5-3-2', '5-4-1'];
+const PRESET = {
+  '4-4-2': [[50, 90], [14, 66], [38, 70], [62, 70], [86, 66], [14, 42], [38, 44], [62, 44], [86, 42], [38, 17], [62, 17]],
+  '4-3-3': [[50, 90], [14, 66], [38, 70], [62, 70], [86, 66], [30, 42], [50, 49], [70, 42], [16, 20], [50, 15], [84, 20]],
+  '4-2-3-1': [[50, 90], [14, 66], [38, 70], [62, 70], [86, 66], [37, 50], [63, 50], [16, 33], [50, 33], [84, 33], [50, 14]],
+  '4-5-1': [[50, 90], [14, 66], [38, 70], [62, 70], [86, 66], [14, 40], [33, 42], [50, 49], [67, 42], [86, 40], [50, 16]],
+  '3-5-2': [[50, 90], [26, 69], [50, 72], [74, 69], [12, 42], [34, 42], [50, 49], [66, 42], [88, 42], [38, 17], [62, 17]],
+  '3-4-3': [[50, 90], [26, 69], [50, 72], [74, 69], [14, 42], [38, 44], [62, 44], [86, 42], [16, 20], [50, 15], [84, 20]],
+  '5-3-2': [[50, 90], [10, 62], [30, 69], [50, 72], [70, 69], [90, 62], [30, 42], [50, 48], [70, 42], [38, 17], [62, 17]],
+  '5-4-1': [[50, 90], [10, 62], [30, 69], [50, 72], [70, 69], [90, 62], [14, 42], [38, 45], [62, 45], [86, 42], [50, 16]]
+};
+const PRESETS = Object.keys(PRESET);
 const DEFM = [0.6, 0.72, 0.84, 0.93, 1, 1.08, 1.13, 1.16, 1.18, 1.19, 1.2];
 const MIDM = [0.6, 0.74, 0.86, 0.94, 1, 1.07, 1.12, 1.15, 1.17, 1.18, 1.19];
 const ATKM = [0.72, 0.9, 1, 1.07, 1.12, 1.15, 1.17, 1.18, 1.19, 1.2, 1.2];
 const ZONE = { dm: 56, ma: 30 };
-function presetSpots(name) {
-  const n = [1, ...name.split('-').map(Number)], ys = [90, 67, 43, 17], out = [];
-  for (let r = 0; r < 4; r++) for (let i = 0; i < n[r]; i++) {
-    const x = 50 + ((i + 1) / (n[r] + 1) * 100 - 50) * (n[r] >= 4 ? 1.16 : 1.05);
-    const y = ys[r] + (n[r] >= 5 ? (i % 2 ? 3.4 : -3.4) : n[r] === 4 ? (i === 0 || i === 3 ? -2.6 : 2.6) : 0);
-    out.push({ x: Math.round(x * 10) / 10, y: Math.round(y * 10) / 10 });
-  }
-  return out;
+const presetSpots = name => (PRESET[name] || PRESET['4-4-2']).map(([x, y]) => ({ x, y }));
+function codeAt(x, y) {
+  if (y >= ZONE.dm) return x < 24 ? 'LE' : x > 76 ? 'LD' : 'ZAG';
+  if (y >= ZONE.ma) return x < 24 ? 'ME' : x > 76 ? 'MD' : y >= 47 ? 'VOL' : y < 37 ? 'MEI' : 'MC';
+  return x < 30 ? 'PE' : x > 70 ? 'PD' : 'CA';
 }
-const roleAtY = y => (y >= ZONE.dm ? 1 : y >= ZONE.ma ? 2 : 3);
-const rolesOf = c => c.spots.map((sp, i) => (i === 0 ? 0 : roleAtY(sp.y)));
+const codesOf = c => c.spots.map((sp, i) => (i === 0 ? 'GOL' : codeAt(sp.x, sp.y)));
+const rolesOf = c => codesOf(c).map(k => SP[k].g);
 const countsOf = roles => [1, 2, 3].map(r => roles.filter(x => x === r).length);
 const formName = c => countsOf(rolesOf(c)).join('-');
 // entrosamento efetivo: cada jogador que mudou de linha desde o último jogo custa 8 pontos
@@ -503,6 +553,10 @@ const BASES = [[76, 75, 74, 73, 72, 71, 70, 69, 68, 67], [66, 65, 64, 63, 62, 61
 let G = null;
 const PMAP = new Map();
 function reindex() {
+  for (const p of [...G.clubs.flatMap(c => c.players), ...G.free, ...G.youth]) if (!p.sp) p.sp = pickCode(p.pos);
+  if (!G.tx) G.tx = [];
+  for (const p of G.clubs[0] ? G.clubs[0].players : []) if (p.list === true) p.list = round5(valueOf(p) * 1.1);
+  if (!G.watch) G.watch = [];
   for (const c of G.clubs) if (!c.spots) { c.spots = presetSpots(PRESETS.includes(c.form) ? c.form : '4-4-2'); c.form = formName(c); c.lastCnt = countsOf(rolesOf(c)); }
   PMAP.clear();
   for (const c of G.clubs) for (const p of c.players) PMAP.set(p.id, p);
@@ -528,11 +582,31 @@ function shape(pos, T) {
   if (pos === 2) return { g: 14, d: T - 6, m: T + 5, a: T - 4 };
   return { g: 14, d: T - 22, m: T - 7, a: T + 5 };
 }
-// atributos efetivos numa função (o Coringa se molda ao setor)
+// atributos efetivos num setor: fora do setor de origem, o jogador rende como alguém
+// daquele setor com o seu nível (o fator de posição desconta o resto)
 function attrsIn(p, role) {
-  if (p.tr === 'coringa' && p.pos > 0 && role > 0 && role !== p.pos) return shape(role, ovrIn(p, p.pos));
+  if (p.pos > 0 && role > 0 && role !== p.pos) return shape(role, ovrIn(p, p.pos));
   return p;
 }
+function fitKind(p, code) {
+  const sp = p.sp;
+  if (sp === code) return 'same';
+  if ((SP[code].g === 0) !== (p.pos === 0)) return 'other';
+  return (SP_NEAR[sp] || []).includes(code) ? 'near' : SP[sp].g === SP[code].g ? 'sector' : 'other';
+}
+function fitOf(p, code) {
+  if ((SP[code].g === 0) !== (p.pos === 0)) return 1; // goleiro na linha (ou o contrário): os atributos já derrubam o nível
+  const f = FIT_N[fitKind(p, code)];
+  return p.tr === 'coringa' ? Math.max(f, 0.96) : f;
+}
+// nível do jogador jogando numa posição específica
+function ovrAt(p, code) {
+  const g = SP[code].g;
+  if (g === 0) return p.g;
+  if (p.pos === 0) return ovrIn(p, g);
+  return ovrIn(p, p.pos) * fitOf(p, code);
+}
+const pickCode = g => pick(SP_PICK[g]);
 const baseVal = o => 40 * Math.pow(1.13, o - 50);
 const wageOf = p => Math.max(1, Math.round(baseVal(ovr(p)) * 0.02));
 function valueOf(p) {
@@ -545,37 +619,39 @@ const formOf = p => (p.h.length ? avg(p.h, x => x) : 0);
 const avail = p => !p.inj && !p.sus;
 function traitFor(pos, age) {
   const t = ['pulmao', 'vidraca', 'pavio'];
-  if (pos === 0) t.push('paredao', 'paredao'); else t.push('batedor', 'coringa');
+  if (pos === 0) t.push('paredao', 'paredao'); else t.push('batedor', 'coringa', 'coringa');
   if (pos >= 2) t.push('matador', 'matador');
   if (age <= 21) t.push('promessa', 'promessa');
   if (age >= 27) t.push('lider', 'lider');
   return pick(t);
 }
+const SP_TWEAK = { LD: { d: -3, m: 3 }, LE: { d: -3, m: 3 }, VOL: { d: 5, a: -5 }, MEI: { d: -6, m: 2, a: 4 }, MD: { a: 2 }, ME: { a: 2 }, PD: { m: 2 }, PE: { m: 2 }, CA: { a: 2, m: -2 } };
 function mkPlayer(pos, T, age, opt = {}) {
   T = clamp(T, 30, 94);
-  const s = shape(pos, T), j = () => rnd(-3, 3);
+  const code = typeof pos === 'string' ? pos : pickCode(pos);
+  pos = SP[code].g;
+  const s = shape(pos, T), j = () => rnd(-3, 3), tw = SP_TWEAK[code] || {};
+  for (const k in tw) s[k] += tw[k];
   const fix = v => Math.round(clamp(v, 5, 99));
   const p = {
-    id: G.uid++, n: pick(FIRST) + ' ' + pick(LAST), pos, age,
+    id: G.uid++, n: pick(FIRST) + ' ' + pick(LAST), pos, sp: code, age,
     g: fix(pos === 0 ? s.g + j() * 0.3 : 10 + R() * 12), d: fix(s.d + j()), m: fix(s.m + j()), a: fix(s.a + j()),
     pot: 0, en: 100, mo: 62, h: [], inj: 0, sus: 0, yc: 0, ctr: ri(1, 3), tr: '', gl: 0, as: 0, ap: 0, xp: 0, w: 1
   };
   if (pos === 0) p.g = fix(T + j() * 0.3);
+  const d0 = T - ovrIn(p, pos);
+  if (pos > 0) for (const k of ['d', 'm', 'a']) p[k] = fix(p[k] + d0);
   const o = ovr(p);
   p.pot = Math.min(96, opt.pot || (age <= 20 ? o + ri(6, 20) : age <= 23 ? o + ri(3, 12) : age <= 27 ? o + ri(0, 4) : o));
   if (R() < (opt.trait != null ? opt.trait : 0.3)) p.tr = traitFor(pos, age);
   p.w = wageOf(p);
   return p;
 }
-function mkSquad(base, n = [2, 6, 7, 5]) {
-  const out = [];
-  const starters = [1, 4, 4, 2];
-  for (let pos = 0; pos < 4; pos++) for (let i = 0; i < n[pos]; i++) {
-    const st = i < starters[pos];
-    const age = st ? ri(22, 32) : R() < 0.45 ? ri(17, 21) : ri(22, 34);
-    out.push(mkPlayer(pos, base + (st ? rnd(-3, 5) : rnd(-10, -2)), age));
-  }
-  return out;
+// elenco padrão: titulares (st) nas 11 posições mais usadas e reservas para cada uma
+const SQUAD_T = [['GOL', 1], ['GOL', 0], ['ZAG', 1], ['ZAG', 1], ['ZAG', 0], ['LD', 1], ['LE', 1], ['LD', 0], ['LE', 0], ['VOL', 1], ['VOL', 0], ['MC', 1], ['MC', 0], ['MEI', 1], ['MD', 1], ['ME', 1], ['CA', 1], ['CA', 0], ['PD', 1], ['PE', 1], ['PD', 0]];
+const SQUAD_NEED = { GOL: 2, ZAG: 3, LD: 1, LE: 1, VOL: 2, MC: 2, MEI: 1, MD: 1, ME: 1, PD: 1, PE: 1, CA: 2 };
+function mkSquad(base) {
+  return SQUAD_T.map(([code, st]) => mkPlayer(code, base + (st ? rnd(-3, 5) : rnd(-10, -2)), st ? ri(22, 32) : R() < 0.45 ? ri(17, 21) : ri(22, 34)));
 }
 function grow(p, rate, focus) {
   p.xp += rate;
@@ -604,22 +680,20 @@ function ensureSquad(c) {
 }
 function autoLineup(c) {
   ensureSquad(c);
-  const roles = rolesOf(c), need = [1, ...countsOf(roles)], got = [[], [], [], []], used = new Set(), pairs = [];
-  for (const p of c.players) if (avail(p)) for (let r = 0; r < 4; r++) {
-    pairs.push([p, r, ovrIn(p, r) * (0.8 + 0.2 * p.en / 100) - (r !== p.pos && p.tr !== 'coringa' ? 2 : 0)]);
-  }
+  const codes = codesOf(c), pairs = [], lineup = Array(11).fill(0), used = new Set();
+  for (const p of c.players) if (avail(p)) codes.forEach((k, i) => pairs.push([p, i, ovrAt(p, k) * (0.8 + 0.2 * p.en / 100)]));
   pairs.sort((x, y) => y[2] - x[2]);
-  for (const [p, r] of pairs) { if (used.has(p.id) || got[r].length >= need[r]) continue; used.add(p.id); got[r].push(p.id); }
-  c.lineup = roles.map(r => got[r].shift() || 0);
-  return c.lineup;
+  for (const [p, i] of pairs) if (!lineup[i] && !used.has(p.id)) { lineup[i] = p.id; used.add(p.id); }
+  c.lineup = lineup;
+  return lineup;
 }
 function fixLineup(c) {
   ensureSquad(c);
   if (!c.lineup || c.lineup.length !== 11) return autoLineup(c);
-  const roles = rolesOf(c), keep = new Set();
+  const codes = codesOf(c), keep = new Set();
   const ok = c.lineup.map(id => { const p = c.players.find(x => x.id === id); if (p && avail(p) && !keep.has(id)) { keep.add(id); return true; } return false; });
   for (let i = 0; i < 11; i++) if (!ok[i]) {
-    const cand = c.players.filter(p => avail(p) && !keep.has(p.id)).sort((x, y) => ovrIn(y, roles[i]) - ovrIn(x, roles[i]))[0];
+    const cand = c.players.filter(p => avail(p) && !keep.has(p.id)).sort((x, y) => ovrAt(y, codes[i]) - ovrAt(x, codes[i]))[0];
     c.lineup[i] = cand ? cand.id : 0; if (cand) keep.add(cand.id);
   }
   return c.lineup;
@@ -634,10 +708,10 @@ function moveSpot(c, i, x, y) {
 function setStyle(c, s) { if (c.style === s) return; c.style = s; c.fam = Math.round(c.fam * 0.78); }
 // força "no papel" (elenco titular descansado, sem tática)
 function power(c) {
-  const roles = rolesOf(c);
+  const codes = codesOf(c);
   const ids = c.lineup && c.lineup.length === 11 ? c.lineup : null;
   if (!ids) { const best = c.players.slice().sort((a, b) => ovr(b) - ovr(a)).slice(0, 11); return avg(best, ovr, 50); }
-  return avg(ids.map((id, i) => [c.players.find(p => p.id === id), roles[i]]).filter(x => x[0]), x => ovrIn(x[0], x[1]), 50);
+  return avg(ids.map((id, i) => [c.players.find(p => p.id === id), codes[i]]).filter(x => x[0]), x => ovrAt(x[0], x[1]), 50);
 }
 
 // =====================================================================
@@ -664,10 +738,10 @@ const last = n => n.split(' ').slice(-1)[0];
 
 function mkSide(c, home, user) {
   if (user) fixLineup(c); else autoLineup(c);
-  const roles = rolesOf(c);
+  const codes = codesOf(c), roles = codes.map(k => SP[k].g);
   return {
     c, home, user, form: c.form, cnt: countsOf(roles), style: c.style, ment: c.ment || 'eq', fam: famNow(c),
-    on: c.lineup.map((id, i) => ({ p: c.players.find(p => p.id === id), role: roles[i], i, en: 0, r: 6, g: 0, a: 0, yc: 0, out: false, t0: 0, t1: 90 })).filter(o => o.p),
+    on: c.lineup.map((id, i) => { const p = c.players.find(x => x.id === id); return { p, role: roles[i], code: codes[i], fit: p ? fitOf(p, codes[i]) : 1, i, en: 0, r: 6, g: 0, a: 0, yc: 0, out: false, t0: 0, t1: 90 }; }).filter(o => o.p),
     served: c.players.filter(p => p.sus > 0), usedIds: new Set(c.lineup),
     subs: 0, g: 0, sh: 0, sot: 0, pos: 0, boost: 1, s: null
   };
@@ -687,7 +761,7 @@ function newMatch(hc, ac, o = {}) {
 function sectorsOf(S, O) {
   const n = S.cnt, st = STYLES[S.style], mt = MENT[S.ment];
   const act = S.on.filter(o => !o.out);
-  const e = (o, k) => attrsIn(o.p, o.role)[k] * (0.72 + 0.28 * o.en / 100) * (0.95 + 0.1 * o.p.mo / 100);
+  const e = (o, k) => attrsIn(o.p, o.role)[k] * o.fit * (0.72 + 0.28 * o.en / 100) * (0.95 + 0.1 * o.p.mo / 100);
   const A = (r, k) => { const l = act.filter(o => o.role === r); const miss = Math.max(0, n[r - 1] - l.length); return l.length ? sum(l, o => e(o, k)) / (l.length + 0.5 * miss) : 25; };
   const gk = act.find(o => o.role === 0);
   const k = (0.94 + 0.08 * S.fam / 100) * (S.home ? 1.04 : 1) * S.boost * (st.beats && st.beats === O.style ? 1.06 : 1);
@@ -711,17 +785,17 @@ function push(M, t, side, x, extra) { const e = Object.assign({ m: M.min, t, s: 
 function doSub(M, S, outE, pIn, why) {
   if (S.subs >= 5 || !pIn || outE.out) return false;
   outE.out = true; outE.t1 = M.min;
-  S.on.push({ p: pIn, role: outE.role, i: outE.i, en: pIn.en, r: 6, g: 0, a: 0, yc: 0, out: false, t0: M.min, t1: 90 });
+  S.on.push({ p: pIn, role: outE.role, code: outE.code, fit: fitOf(pIn, outE.code), i: outE.i, en: pIn.en, r: 6, g: 0, a: 0, yc: 0, out: false, t0: M.min, t1: 90 });
   S.usedIds.add(pIn.id); S.subs++; M.dirty = true;
   if (!M.silent) push(M, 'sub', S.home ? 'h' : 'a', `${why ? why + ' ' : ''}Sai ${last(outE.p.n)}, entra ${last(pIn.n)}.`, { out: outE.p.id, inn: pIn.id });
   return true;
 }
-const bestSub = (S, role) => benchOf(S).sort((x, y) => ovrIn(y, role) * (0.8 + 0.2 * y.en / 100) - ovrIn(x, role) * (0.8 + 0.2 * x.en / 100))[0];
+const bestSub = (S, code) => benchOf(S).sort((x, y) => ovrAt(y, code) * (0.8 + 0.2 * y.en / 100) - ovrAt(x, code) * (0.8 + 0.2 * x.en / 100))[0];
 function aiTurn(M, S, O) {
   const m = M.min;
   if (m === 60 || m === 70 || m === 80) {
     const tired = S.on.filter(o => !o.out && o.role > 0).sort((x, y) => x.en - y.en)[0];
-    if (tired && tired.en < 62) { const b = bestSub(S, tired.role); if (b && ovrIn(b, tired.role) * (0.8 + 0.2 * b.en / 100) > ovrIn(tired.p, tired.role) * (0.72 + 0.28 * tired.en / 100) - 2) doSub(M, S, tired, b); }
+    if (tired && tired.en < 62) { const b = bestSub(S, tired.code); if (b && ovrAt(b, tired.code) * (0.8 + 0.2 * b.en / 100) > ovrAt(tired.p, tired.code) * (0.72 + 0.28 * tired.en / 100) - 2) doSub(M, S, tired, b); }
   }
   if (m === 70 || m === 80) {
     const d = S.g - O.g, was = S.ment;
@@ -729,13 +803,16 @@ function aiTurn(M, S, O) {
     if (was !== S.ment) M.dirty = true;
   }
 }
+// quem finaliza: centroavante e pontas chutam mais; no escanteio, zagueiros sobem
+const W_SHOT = { GOL: 0, ZAG: 0.25, LD: 0.35, LE: 0.35, VOL: 0.45, MC: 0.9, MEI: 1.8, MD: 1.1, ME: 1.1, PD: 2.4, PE: 2.4, CA: 3.6 };
+const W_HEAD = { GOL: 0, ZAG: 1.7, LD: 0.4, LE: 0.4, VOL: 1, MC: 0.8, MEI: 0.8, MD: 0.5, ME: 0.5, PD: 0.9, PE: 0.9, CA: 2.6 };
 function chance(M, A, D) {
   const as = A.home ? 'h' : 'a';
   const act = A.on.filter(o => !o.out);
   const r0 = R();
   const type = r0 < 0.025 ? 'pen' : r0 < 0.085 ? 'falta' : r0 < 0.2 ? 'esc' : r0 < 0.32 ? 'longe' : r0 < (A.style === 'ca' ? 0.6 : 0.4) ? 'contra' : 'jog';
-  const wRole = type === 'esc' ? [0, 1.3, 1, 2.4] : [0, 0.35, 1.4, 3.2];
-  let sh = wpick(act, o => wRole[o.role] * Math.pow(attrsIn(o.p, o.role).a / 60, 2) * (o.p.tr === 'matador' ? 1.3 : 1));
+  const W = type === 'esc' ? W_HEAD : W_SHOT;
+  let sh = wpick(act, o => W[o.code] * Math.pow(attrsIn(o.p, o.role).a * o.fit / 60, 2) * (o.p.tr === 'matador' ? 1.3 : 1));
   if (type === 'pen' || type === 'falta') { const b = act.find(o => o.p.tr === 'batedor' && o.role > 0); if (b) sh = b; }
   const as2 = R() < 0.65 && type !== 'pen' && type !== 'falta' ? wpick(act.filter(o => o !== sh && o.role > 0), o => attrsIn(o.p, o.role).m) : null;
   const gk = D.on.find(o => !o.out && o.role === 0);
@@ -782,7 +859,7 @@ function injury(M) {
   o.hurt = true; M.dirty = true;
   push(M, 'inj', S.home ? 'h' : 'a', M.silent ? '' : say('inj', { p: last(o.p.n) }), { pid: o.p.id });
   if (S.user && !M.auto && S.subs < 5 && benchOf(S).length) M.pend = { S, o };
-  else { const b = bestSub(S, o.role); if (!doSub(M, S, o, b)) { o.out = true; o.t1 = M.min; } }
+  else { const b = bestSub(S, o.code); if (!doSub(M, S, o, b)) { o.out = true; o.t1 = M.min; } }
 }
 function stepMinute(M) {
   if (M.done || M.pend) return;
@@ -949,7 +1026,7 @@ function newGame(o) {
     v: 1, uid: 1, season: 1, year: 2026, week: 1, ci: 0, cal: [], clubs: [], free: [], youth: [], market: [], known: {}, tries: {}, scoutQ: [],
     money: 1500, price: 30, train: { f: 'eq', i: 1 }, fac: { est: 0, ct: 0, base: 0, med: 0, olh: 0, com: 0 },
     board: { conf: 65, obj: null, warned: false }, inbox: [], lg: null, cup: null, fin: { in: {}, out: {} }, wk: { in: 0, out: 0 },
-    hist: [], trophies: [], flags: {}, over: null, review: null, tip: 0, last: null, lastWk: null
+    hist: [], trophies: [], flags: {}, over: null, review: null, tip: 0, last: null, lastWk: null, tx: [], watch: []
   };
   const u = { id: 0, name: o.name, abbr: o.abbr, c1: o.c1, c2: o.c2, crest: o.crest, pat: o.pat, div: 1, base: 0, rep: 34, form: '4-4-2', style: 'eq', ment: 'eq', fam: 60, players: [], lineup: [], hist: [], t: null };
   u.spots = presetSpots(u.form); u.lastCnt = countsOf(rolesOf(u));
@@ -1038,6 +1115,12 @@ function prepAsk(p) {
   p.ask = c ? round5(valueOf(p) * (listed ? rnd(1, 1.15) : rnd(1.5, 1.85))) : p.wask * 6;
   p.thr = c ? rnd(0.86, 1) : 1; p.wthr = rnd(0.9, 1);
 }
+const CH = ['improvável', 'possível', 'provável', 'certa'];
+function bidChance(p, fee, wage) {
+  prepAsk(p);
+  const c = clubOf(p.id), f = c ? fee / p.ask : 1, w = wage / p.wask;
+  return { fee: c ? (f >= 1 ? 3 : f >= 0.94 ? 2 : f >= 0.87 ? 1 : 0) : 3, wage: w >= 1 ? 3 : w >= 0.96 ? 2 : w >= 0.9 ? 1 : 0 };
+}
 function bid(p, fee, wage, yrs) {
   prepAsk(p);
   const c = clubOf(p.id), m = me();
@@ -1050,13 +1133,13 @@ function bid(p, fee, wage, yrs) {
   G.tries[p.id] = (G.tries[p.id] || 0) + 1;
   const feeOk = !c || fee >= p.ask * p.thr, wageOk = wage >= p.wask * p.wthr;
   if (feeOk && wageOk) {
-    if (c) { c.players = c.players.filter(x => x !== p); if (c.players.length < 18) { const y = mkPlayer(p.pos, c.base - 6 + rnd(-3, 3), ri(18, 21)); c.players.push(y); PMAP.set(y.id, y); } autoLineup(c); }
+    if (c) { c.players = c.players.filter(x => x !== p); if (c.players.length < 18) { const y = mkPlayer(p.sp, c.base - 6 + rnd(-3, 3), ri(18, 21)); c.players.push(y); PMAP.set(y.id, y); } autoLineup(c); }
     else G.free = G.free.filter(x => x !== p);
     G.market = G.market.filter(id => id !== p.id);
     p.w = wage; p.ctr = yrs; p.mo = 68; p.list = false; delete p.ask; G.known[p.id] = 1;
-    m.players.push(p);
-    spend(c ? 'Contratações' : 'Luvas', fee);
-    note('✍️', 'Reforço confirmado', `${p.n} (${POS[p.pos]}, ${ovr(p)}) assinou por ${yrs} ano${yrs > 1 ? 's' : ''}${c ? `. O ${c.name} recebeu ${money(fee)}.` : '.'}`);
+    m.players.push(p); G.watch = G.watch.filter(id => id !== p.id);
+    spend(c ? 'Contratações' : 'Luvas', fee); logTx('in', p, c ? c.name : 'sem clube', fee);
+    note('✍️', 'Reforço confirmado', `${p.n} (${p.sp}, ${ovr(p)}) assinou por ${yrs} ano${yrs > 1 ? 's' : ''}${c ? `. O ${c.name} recebeu ${money(fee)}.` : '.'}`);
     return { ok: true, msg: `${p.n} é do ${m.name}!` };
   }
   const cf = feeOk ? fee : round5(Math.ceil(p.ask * (p.thr + (1 - p.thr) * 0.5) / 5) * 5);
@@ -1064,18 +1147,19 @@ function bid(p, fee, wage, yrs) {
   const left = 3 - G.tries[p.id];
   return { ok: false, counter: { fee: cf, wage: cw }, feeOk, wageOk, msg: `${!feeOk ? `O ${c.name} quer ${money(cf)}. ` : ''}${!wageOk ? `${last(p.n)} pede ${money(cw)} por semana. ` : ''}${left ? `Resta${left > 1 ? 'm' : ''} ${left} tentativa${left > 1 ? 's' : ''} esta semana.` : 'Era a última tentativa da semana.'}` };
 }
+function logTx(t, p, club, fee) { G.tx.unshift({ y: G.year, w: G.week, t, n: p.n, sp: p.sp, o: ovr(p), age: p.age, club, fee }); if (G.tx.length > 60) G.tx.length = 60; }
 function sellTo(p, cid, fee) {
   const m = me(), c = G.clubs[cid];
   m.players = m.players.filter(x => x !== p); m.lineup = m.lineup.map(id => (id === p.id ? 0 : id));
   p.list = false; p.mo = 62; delete p.ask; c.players.push(p);
   if (c.players.length > 22) { const worst = c.players.slice().sort((a, b) => ovr(a) - ovr(b))[0]; c.players = c.players.filter(x => x !== worst); PMAP.delete(worst.id); G.market = G.market.filter(id => id !== worst.id); }
-  earn('Vendas', fee); fixLineup(m);
+  earn('Vendas', fee); logTx('out', p, c.name, fee); fixLineup(m);
 }
 function release(p) {
   const m = me(), cost = p.w * 6;
   if (m.players.length <= SQUAD_MIN) return `O elenco não pode ter menos de ${SQUAD_MIN} jogadores.`;
   m.players = m.players.filter(x => x !== p); m.lineup = m.lineup.map(id => (id === p.id ? 0 : id));
-  spend('Rescisões', cost); p.ctr = 0; p.list = false; G.free.push(p); fixLineup(m);
+  spend('Rescisões', cost); logTx('rel', p, 'dispensado', cost); p.ctr = 0; p.list = false; G.free.push(p); fixLineup(m);
   return '';
 }
 const renewAsk = p => Math.max(p.w, Math.round(wageOf(p) * (1.06 + (formOf(p) > 7 ? 0.1 : 0) + (p.age > 31 ? -0.12 : 0))));
@@ -1087,11 +1171,24 @@ function promote(p) {
   if (me().players.length >= SQUAD_MAX) return `Elenco cheio (${SQUAD_MAX}).`;
   G.youth = G.youth.filter(x => x !== p); me().players.push(p); p.mo = 75; return '';
 }
-function buyerFor(p) { const o = ovr(p); const c = G.clubs.slice(1).filter(x => o >= x.base - 7 && o <= x.base + 9); return c.length ? pick(c) : null; }
-function offerFor(p, mult) {
-  const c = buyerFor(p); if (!c) return false;
-  const fee = round5(valueOf(p) * mult);
-  ask('💰', `Proposta por ${p.n}`, `O ${c.name} oferece ${money(fee)} por ${p.n} (${POS[p.pos]}, ${ovr(p)}). Valor de mercado: ${money(valueOf(p))}.`, ['Aceitar', 'Pedir mais', 'Recusar'], 'offer', { pid: p.id, cid: c.id, fee });
+function buyerFor(p, not) { const o = ovr(p); const c = G.clubs.slice(1).filter(x => x.id !== not && o >= x.base - 7 && o <= x.base + 9 && x.players.length < 26); return c.length ? pick(c) : null; }
+// anunciar: price = preço pedido (0 tira do mercado)
+function listFor(p, price) { p.list = price > 0 ? round5(price) : 0; }
+// chance semanal de proposta para quem está à venda, pelo preço pedido em relação ao valor
+const offerOdds = p => clamp(1.3 - 0.75 * (p.list / valueOf(p)), 0.04, 0.85);
+const quickPrice = p => round5(valueOf(p) * 0.72);
+function quickSell(p) {
+  if (!windowOpen()) return { ok: false, msg: 'A janela de transferências está fechada.' };
+  if (me().players.length <= SQUAD_MIN) return { ok: false, msg: `O elenco não pode ter menos de ${SQUAD_MIN} jogadores.` };
+  const c = buyerFor(p); if (!c) return { ok: false, msg: 'Nenhum clube se interessou agora.' };
+  const fee = quickPrice(p); sellTo(p, c.id, fee);
+  return { ok: true, msg: `${p.n} foi vendido ao ${c.name} por ${money(fee)}.` };
+}
+function offerFor(p, mult, cid) {
+  const c = cid != null ? G.clubs[cid] : buyerFor(p); if (!c) return false;
+  const fee = round5(p.list ? Math.min(p.list * rnd(0.97, 1.02), valueOf(p) * mult) : valueOf(p) * mult);
+  const pct = p.list ? Math.round(100 * fee / p.list) : 0;
+  ask('💰', `Proposta por ${p.n}`, `O ${c.name} oferece ${money(fee)} por ${p.n} (${p.sp}, ${ovr(p)}). ${p.list ? `Você pede ${money(p.list)} (${pct}% da pedida).` : `Valor de mercado: ${money(valueOf(p))}.`}`, ['Aceitar', 'Pedir mais', 'Recusar'], 'offer', { pid: p.id, cid: c.id, fee });
   return true;
 }
 
@@ -1104,7 +1201,12 @@ const EVENTS = {
       if (i === 2) return `Proposta recusada. ${p.n} fica.`;
       if (me().players.length <= SQUAD_MIN) return `Venda cancelada: o elenco não pode ter menos de ${SQUAD_MIN} jogadores.`;
       let fee = d.fee;
-      if (i === 1) { const r = R(); if (r < 0.3) return `O ${c.name} não gostou da pedida e desistiu do negócio.`; if (r < 0.9) fee = round5(fee * rnd(1.08, 1.18)); }
+      if (i === 1) {
+        // pedir mais: perto da pedida eles costumam ceder; longe, podem desistir
+        const target = Math.max(p.list || 0, round5(fee * 1.15)), gap = target / fee - 1, r = R();
+        if (r < 0.15 + gap * 1.2) return `O ${c.name} achou caro e desistiu do negócio.`;
+        fee = r < 0.7 ? target : round5(fee + (target - fee) * 0.5);
+      }
       sellTo(p, d.cid, fee);
       return `${p.n} foi vendido ao ${c.name} por ${money(fee)}.`;
     }
@@ -1118,12 +1220,12 @@ const EVENTS = {
     }
   },
   reserva: {
-    make() { const m = me(), cut = power(m) - 4; const p = m.players.filter(x => !m.lineup.includes(x.id) && avail(x) && ovr(x) >= cut && x.pos > 0)[0]; if (!p) return null; return { ic: '😤', t: `${p.n} quer jogar`, x: `${p.n} (${POS[p.pos]}, ${ovr(p)}) bateu na sua porta: está cansado do banco.`, o: ['Prometer titularidade', 'Pedir paciência', 'Colocar à venda'], data: { pid: p.id } }; },
+    make() { const m = me(), cut = power(m) - 4; const p = m.players.filter(x => !m.lineup.includes(x.id) && avail(x) && ovr(x) >= cut && x.pos > 0)[0]; if (!p) return null; return { ic: '😤', t: `${p.n} quer jogar`, x: `${p.n} (${p.sp}, ${ovr(p)}) bateu na sua porta: está cansado do banco.`, o: ['Prometer titularidade', 'Pedir paciência', 'Colocar à venda'], data: { pid: p.id } }; },
     act(i, d) {
       const p = pl(d.pid); if (!p || !isMine(p)) return 'Assunto encerrado.';
       if (i === 0) { p.mo = clamp(p.mo + 14, 5, 100); p.prom = 2; return `${p.n} saiu animado. Escale-o em até 2 jogos, ou o moral dele despenca.`; }
       if (i === 1) { const ok = R() < 0.5; p.mo = clamp(p.mo + (ok ? 6 : -8), 5, 100); return ok ? `${p.n} entendeu e segue trabalhando.` : `${p.n} saiu da sala contrariado.`; }
-      p.list = true; p.mo = clamp(p.mo - 5, 5, 100); return `${p.n} foi para a lista de vendas.`;
+      listFor(p, valueOf(p) * 1.1); p.mo = clamp(p.mo - 5, 5, 100); return `${p.n} foi anunciado por ${money(p.list)}.`;
     }
   },
   churrasco: {
@@ -1148,7 +1250,7 @@ const EVENTS = {
       if (i) return 'Você preferiu não arriscar.';
       spend('Olheiros', 25);
       const p = mkPlayer(ri(1, 3), power(me()) - rnd(7, 11), ri(17, 19), { trait: 0 }); p.pot = Math.min(94, ovr(p) + ri(16, 26)); p.tr = 'promessa'; p.ctr = 0; G.free.push(p); PMAP.set(p.id, p); G.known[p.id] = 1;
-      return `Relatório entregue: ${p.n}, ${p.age} anos, ${POS[p.pos]} ${ovr(p)} com potencial ${p.pot}. Está sem clube, em Mercado › Contratar.`;
+      return `Relatório entregue: ${p.n}, ${p.age} anos, ${SP[p.sp].n.toLowerCase()} ${ovr(p)} com potencial ${p.pot}. Está sem clube, em Mercado › Contratar.`;
     }
   },
   torcida: {
@@ -1193,7 +1295,7 @@ function afterUserMatch(M) {
   G.board.conf = clamp(G.board.conf + dc, 0, 100);
   me().rep = clamp(me().rep + (out > 0 ? 0.4 : out < 0 ? -0.3 : 0), 5, 99);
   playEntry(e, res);
-  G.last = { e, res, out, gate, dc, mine: S.on.map(o => ({ id: o.p.id, n: o.p.n, pos: o.role, note: o.note, g: o.g, a: o.a, yc: o.yc, red: !!o.red, hurt: !!o.hurt })), opp: O.c.id, home: f.home, st: { sh: [M.h.sh, M.a.sh], sot: [M.h.sot, M.a.sot], pos: Math.round(100 * M.h.pos / (M.h.pos + M.a.pos)) }, goals: M.ev.filter(x => x.t === 'gol').map(x => ({ m: x.m, s: x.s, n: x.n })) };
+  G.last = { e, res, out, gate, dc, mine: S.on.map(o => ({ id: o.p.id, n: o.p.n, pos: o.role, c: o.code, note: o.note, g: o.g, a: o.a, yc: o.yc, red: !!o.red, hurt: !!o.hurt })), opp: O.c.id, home: f.home, st: { sh: [M.h.sh, M.a.sh], sot: [M.h.sot, M.a.sot], pos: Math.round(100 * M.h.pos / (M.h.pos + M.a.pos)) }, goals: M.ev.filter(x => x.t === 'gol').map(x => ({ m: x.m, s: x.s, n: x.n })) };
   return G.last;
 }
 
@@ -1227,7 +1329,7 @@ function endWeek() {
   if (G.money < 0) { G.board.conf = clamp(G.board.conf - 3, 0, 100); if (!G.flags.debt) { G.flags.debt = 1; note('🏦', 'Caixa no vermelho', 'O clube está devendo. A confiança da diretoria cai toda semana até o saldo voltar ao azul.'); } } else delete G.flags.debt;
   G.lastWk = G.wk; G.wk = { in: 0, out: 0 };
   // olheiros
-  for (const id of G.scoutQ) { const p = pl(id); if (p) { G.known[id] = 1; note('🔭', 'Relatório do olheiro', `${p.n} (${POS[p.pos]}, ${p.age} anos): nível ${ovr(p)}, potencial ${p.pot}${p.tr ? ', ' + TRAITS[p.tr].n.toLowerCase() : ''}.`); } }
+  for (const id of G.scoutQ) { const p = pl(id); if (p) { G.known[id] = 1; note('🔭', 'Relatório do olheiro', `${p.n} (${p.sp}, ${p.age} anos): nível ${ovr(p)}, potencial ${p.pot}${p.tr ? ', ' + TRAITS[p.tr].n.toLowerCase() : ''}.`); } }
   G.scoutQ = [];
   // mercado
   G.tries = {};
@@ -1240,7 +1342,7 @@ function endWeek() {
   advance();
   if (G.review || G.over) return;
   if (windowOpen()) {
-    for (const p of m.players) if (p.list && R() < 0.4) offerFor(p, rnd(0.8, 1.15));
+    for (const p of m.players) if (p.list && R() < offerOdds(p)) { offerFor(p, rnd(0.85, 1.2)); if (R() < 0.25) offerFor(p, rnd(0.9, 1.25)); }
     if (R() < 0.1) { const star = m.players.filter(p => !p.list && formOf(p) >= 6.8).sort((a, b) => valueOf(b) - valueOf(a))[ri(0, 2)]; if (star) offerFor(star, rnd(1.15, 1.5)); }
   }
   if (R() < 0.5) { const keys = Object.keys(EVENTS).filter(k => k !== 'offer'); for (let t = 0; t < 4; t++) { const k = pick(keys); if (G.flags.lastEv === k) continue; const it = EVENTS[k].make(); if (it) { ask(it.ic, it.t, it.x, it.o, k, it.data); G.flags.lastEv = k; break; } } }
@@ -1300,8 +1402,7 @@ function nextSeason() {
     }
     if (!mine) {
       c.base = clamp(c.base + rnd(-1, 1), 54, 84);
-      const n = [0, 1, 2, 3].map(r => c.players.filter(p => p.pos === r).length), want = [2, 6, 7, 5];
-      for (let r = 0; r < 4; r++) for (let i = n[r]; i < want[r]; i++) c.players.push(mkPlayer(r, c.base + rnd(-7, 2), ri(17, 22)));
+      for (const k in SQUAD_NEED) for (let i = c.players.filter(p => p.sp === k).length; i < SQUAD_NEED[k]; i++) c.players.push(mkPlayer(k, c.base + rnd(-7, 2), ri(17, 22)));
       let guard = 0; autoLineup(c);
       while (power(c) < c.base - 1 && guard++ < 60) { const p = pl2(c, pick(c.lineup)); if (p) { const k = KEY[p.pos]; p[k] = Math.min(99, p[k] + 2); p.pot = Math.max(p.pot, ovr(p)); } }
       guard = 0;
@@ -1441,7 +1542,7 @@ const GL = (() => {
   let THREE, ready = false, failed = false, renderer, scene, camera, canvas, fx, dust, DUSTC, confMesh, dummy, FG, ballV, lastT = 0, T0 = 0, confI = 0, ringI = 0;
   const TX = {}, goals = {}, conf = [], rings = [], MATC = {}, floats = [], FIELD = { cur: null, boards: [], decal: null };
   const cam = { cD: 260, cx: 0, cz: 0, ctilt: 0 };
-  const V = { on: false, M: null, my: null, op: null, acts: new Map(), ball: null, q: [], wait: 0, block: false, ended: false, scene: false, poss: null, zoneY: null, minAcc: 0, passT: 1, speed: 2, camNear: true, shake: 0, seen: 0, shown: [0, 0], half: false, mood: 0, home: true };
+  const V = { on: false, M: null, my: null, op: null, acts: new Map(), ball: null, q: [], wait: 0, block: false, ended: false, scene: false, poss: null, want: null, zoneY: null, minAcc: 0, speed: 2, camNear: true, shake: 0, seen: 0, shown: [0, 0], half: false, mood: 0, home: true };
 
   const W = (x, y) => [x, -y];
   const planeG = (w, h) => new THREE.PlaneGeometry(w, h).rotateX(-Math.PI / 2);
@@ -1757,6 +1858,7 @@ const GL = (() => {
     ballV.tg = tg; const pts = new THREE.Points(tg, fx.mat); pts.frustumCulled = false; pts.renderOrder = 6; scene.add(pts);
   }
   function updateBallVis(dt, b) {
+    if (b.pop) { b.pop = false; ballV.vis = 0; ballV.x = b.x; ballV.y = b.y; ballV.z = 0; ballV.trail.length = 0; }
     ballV.vis += (1 - ballV.vis) * (1 - Math.exp(-6 * dt));
     const d = Math.hypot(b.x - ballV.x, b.y - ballV.y), k = d > 6 ? 1 : 1 - Math.exp(-40 * dt);
     ballV.x += (b.x - ballV.x) * k; ballV.y += (b.y - ballV.y) * k; ballV.z += (b.z - ballV.z) * k;
@@ -1848,98 +1950,258 @@ const GL = (() => {
 
   // =====================================================================
   // DIREÇÃO DE CENA
+  // O motor de regras decide os lances; aqui eles viram movimento.
+  // Jogadores têm velocidade e aceleração limitadas; a bola tem quatro
+  // estados (no pé, rolando, no ar, parada) e nunca muda de lugar sozinha.
+  // Os roteiros esperam condições ("até o jogador dominar") em vez de
+  // tempos fixos, para que o lance não atropele a física.
   // =====================================================================
+  const SPD = { walk: 2, jog: 4.4, run: 6.4, sprint: 8 }, ACC = 10, GOALY = 52.5;
   const dirOf = S => (S === V.my ? 1 : -1);
-  const team = S => [...V.acts.values()].filter(a => a.S === S && !a.gone);
+  const other = S => (S === V.my ? V.op : V.my);
+  const sideOf = s => (s === 'h' ? V.M.h : V.M.a);
+  const team = S => { const out = []; for (const a of V.acts.values()) if (a.S === S && !a.gone && !a.leaving) out.push(a); return out; };
   const field = S => team(S).filter(a => a.o.role > 0);
   const keeper = S => team(S).find(a => a.o.role === 0);
-  const near = (list, p) => list.slice().sort((a, b) => Math.hypot(a.x - p.x, a.y - p.y) - Math.hypot(b.x - p.x, b.y - p.y))[0];
-  const live = id => { const a = V.acts.get(id); return a && !a.gone ? a : null; };
+  const dist = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
+  const near = (list, p) => { let best = null, bd = 1e9; for (const a of list) { const d = dist(a, p); if (d < bd) { bd = d; best = a; } } return best; };
+  const live = id => { const a = V.acts.get(id); return a && !a.gone && !a.leaving ? a : null; };
+  const owns = S => V.ball.mode === 'held' && V.ball.owner && V.ball.owner.S === S;
+  const step = (fn, after = 0) => ({ fn, after });
+  const until = (cond, max, fn, after = 0, extra) => Object.assign({ until: cond, max, fn, after }, extra);
+  const inBox = (a, b) => a.o.role === 0 && Math.abs(b.x) < 20 && b.y * a.dir < -36;
+
+  function homeOf(a) {
+    const sp = a.S.c.spots[a.o.i] || { x: 50, y: 50 };
+    return { x: (sp.x - 50) * 0.62 * a.dir, y: (22 - sp.y * 0.78) * a.dir };
+  }
   function addActor(S, o, enter) {
-    const c = S.c, d = dirOf(S), sp = c.spots[o.i] || { x: 50, y: 50 };
-    const a = { o, S, dir: d, bx: (sp.x - 50) * 0.62 * d, by: (22 - sp.y * 0.78) * d, x: 0, y: 0, face: d > 0 ? Math.PI / 2 : -Math.PI / 2, kick: 0, jump: 0, dive: 0, diveExt: 0, diveDir: 1, slide: 0, cele: 0, gone: false, sc: null };
-    a.x = enter ? -35.5 : a.bx; a.y = enter ? 0 : a.by;
+    const a = { o, S, dir: dirOf(S), x: 0, y: 0, vx: 0, vy: 0, face: 0, kick: 0, jump: 0, dive: 0, diveExt: 0, diveDir: 1, slide: 0, cele: 0, gone: false, leaving: false, go: null, recv: null, holdT: 1 };
+    const h = homeOf(a); a.bx = h.x; a.by = h.y;
+    if (enter) { a.x = -36; a.y = rnd(-4, 4); } else { a.x = a.bx; a.y = a.by; }
+    a.face = a.dir > 0 ? Math.PI / 2 : -Math.PI / 2;
     a.fig = new Fig(o.p, V.kits[S === V.my ? 0 : 1], o.role === 0, o.role === 0 ? 1 : S.on.indexOf(o) + 1);
     a.fig.x = a.x; a.fig.y = a.y; a.fig.face = a.face; a.fig.sc = enter ? 2 : 3.1;
     V.acts.set(o.p.id, a);
-    if (enter) ring(a.bx, a.by, '#ffffff', 2, 6, 0.5);
+    if (enter) ring(a.x, a.y, '#ffffff', 2, 6, 0.5);
     return a;
+  }
+  function leave(a, spd) {
+    a.leaving = true; a.recv = null; a.go = { x: a.x < 0 ? -37 : 37, y: a.y, spd };
+    if (V.ball.owner === a) loose(0, 0);
   }
   function syncActors() {
     for (const S of [V.my, V.op]) for (const o of S.on) {
       const a = V.acts.get(o.p.id);
       if (!a && !o.out) addActor(S, o, true);
-      else if (a && o.out && !a.gone && !a.leaving) { a.gone = true; a.fig.visible = false; if (V.ball.owner === a) drop(); }
+      else if (a && o.out && !a.leaving && !a.gone) leave(a, o.red || o.hurt ? SPD.walk : SPD.jog);
     }
   }
-  function give(a) { const b = V.ball; b.owner = a; b.mode = 'held'; b.done = null; V.poss = a.S; }
-  function drop() { const b = V.ball; b.owner = null; b.mode = 'free'; b.vx = b.vy = 0; }
-  function place(x, y) { const b = V.ball; b.owner = null; b.mode = 'free'; b.done = null; b.x = x; b.y = y; b.z = 0; b.vx = b.vy = 0; }
-  function fly(tx, ty, T, h, done, z0 = 0, z1 = 0) { const b = V.ball; b.owner = null; b.mode = 'fly'; b.sx = b.x; b.sy = b.y; b.ex = tx; b.ey = ty; b.T = Math.max(0.05, T); b.t = 0; b.h = h; b.z0 = z0; b.z1 = z1; b.done = done || null; b.vx = (tx - b.x) / b.T; b.vy = (ty - b.y) / b.T; }
-  function kick(a, power, tx, ty) { a.kick = 0.3; if (tx != null) a.face = Math.atan2(ty - a.y, tx - a.x); SFX.kick(power); }
-  function pass(from, to) {
-    const d = Math.hypot(to.x - from.x, to.y - from.y), T = clamp(d / 24, 0.25, 1.1);
-    kick(from, d / 30, to.x, to.y);
-    fly(to.x, to.y, T, d > 22 ? 2.4 : 0.15, () => { if (!to.gone) give(to); else drop(); });
+
+  // ---------- bola ----------
+  function give(a) { const b = V.ball; b.owner = a; b.mode = 'held'; b.done = null; b.intended = null; V.poss = a.S; a.recv = null; a.holdT = rnd(0.7, 1.6); if (V.want === a.S) V.want = null; }
+  function loose(vx, vy) { const b = V.ball; b.owner = null; b.mode = 'roll'; b.done = null; b.vx = vx; b.vy = vy; }
+  function dead() { const b = V.ball; b.owner = null; b.mode = 'dead'; b.done = null; b.vx = b.vy = 0; }
+  function place(x, y) { const b = V.ball; dead(); if (Math.hypot(b.x - x, b.y - y) > 0.5) b.pop = true; b.x = x; b.y = y; b.z = 0; }
+  function fly(tx, ty, T, h, done, z0 = 0, z1 = 0, keep = 0.35) {
+    const b = V.ball; b.owner = null; b.mode = 'air'; b.sx = b.x; b.sy = b.y; b.ex = tx; b.ey = ty; b.T = Math.max(0.08, T); b.t = 0; b.h = h; b.z0 = z0; b.z1 = z1; b.keep = keep; b.done = done || null;
+    b.vx = (tx - b.x) / b.T; b.vy = (ty - b.y) / b.T;
   }
-  function turnover(S) {
-    const b = V.ball, l = field(S); if (!l.length) return;
-    if (b.mode === 'held' && b.owner) {
-      const m = near(l, b); give(m); V.passT = rnd(0.6, 1.1);
-      burst(b.x, b.y, ['#ffd27a', '#ffffff'], 12, 9, 0.45, 0.35, 0.4);
-      if (R() < 0.4) flt(m.x, m.y, 'Desarme', S === V.my ? 'amber' : '');
-    } else if (b.mode === 'fly') b.done = () => { const m = near(field(S), b); if (m) give(m); };
-  }
-  function openPlay(dt) {
+  function strike(a, power, tx, ty) { a.kick = 0.3; a.face = Math.atan2(ty - a.y, tx - a.x); V.ball.kicker = a; V.ball.kickT = 0.35; SFX.kick(power); }
+  function pass(o, to, opt = {}) {
     const b = V.ball;
-    if (b.mode === 'free') { const l = field(V.poss || V.my); if (l.length) give(near(l, b)); return; }
-    if (b.mode !== 'held' || !b.owner) return;
-    V.passT -= dt; if (V.passT > 0) return;
-    const o = b.owner, d = o.dir, c = field(o.S).filter(a => a !== o);
-    if (!c.length) { V.passT = 1; return; }
-    const r = wpick(c, a => { const fwd = (a.y - o.y) * d, dist = Math.hypot(a.x - o.x, a.y - o.y); if (dist < 5 || dist > 34) return 0.02; return (a.y * d > 22 ? 0.05 : 1) * (fwd > 0 ? 1.7 : 0.6) / (1 + Math.abs(dist - 14) / 10); });
-    pass(o, r); V.passT = rnd(1.0, 2.1);
+    let tx = opt.x != null ? opt.x : to.x + to.vx * 0.55, ty = opt.y != null ? opt.y : to.y + to.vy * 0.55;
+    const far = Math.hypot(tx - to.x, ty - to.y);
+    if (far > 16) { tx = to.x + (tx - to.x) * 16 / far; ty = to.y + (ty - to.y) * 16 / far; }
+    tx = clamp(tx, -33, 33); ty = clamp(ty, -51, 51);
+    const L = Math.hypot(tx - b.x, ty - b.y), lofted = opt.h != null ? opt.h > 1 : L > 27;
+    // a bola chega quando o receptor chega: passe mais lento se ele estiver longe do ponto
+    const spd = opt.spd || (Math.hypot(tx - to.x, ty - to.y) > 6 ? SPD.sprint : SPD.run);
+    const eta = Math.hypot(tx - to.x, ty - to.y) / spd + 0.15;
+    const T = clamp(Math.max(L / (lofted ? 20 : 16), eta), 0.3, 2.8);
+    strike(o, Math.min(1, L / 30), tx, ty);
+    to.recv = { x: tx, y: ty, spd }; b.intended = to;
+    fly(tx, ty, T, opt.h != null ? opt.h : lofted ? clamp(L / 7, 2.5, 7) : 0.1, () => {
+      to.recv = null;
+      if (!to.gone && !to.leaving && dist(to, V.ball) < 2.8) give(to);
+    }, 0, 0, 0.3);
+    if (lofted && opt.h == null) b.h = clamp(T * T * 1.2, 1.5, 7);
+  }
+  function choosePass(o) {
+    const d = o.dir, opp = field(other(o.S));
+    return wpick(field(o.S).filter(a => a !== o), a => {
+      const L = dist(a, o); if (L < 6 || L > 38) return 0.01;
+      const fwd = (a.y - o.y) * d, free = opp.length ? Math.min(...opp.map(p => dist(p, a))) : 9;
+      return (a.y * d > 28 ? 0.15 : 1) * (fwd > 0 ? 1.6 : fwd > -8 ? 1 : 0.45) * clamp(free / 6, 0.25, 1.4) / (1 + Math.abs(L - 15) / 12);
+    });
+  }
+  function tackle(t) {
+    const b = V.ball;
+    t.slide = 0.45; burst(b.x, b.y, ['#ffd27a', '#ffffff'], 12, 9, 0.45, 0.35, 0.4);
+    if (R() < 0.35) flt(t.x, t.y, 'Desarme', t.S === V.my ? 'amber' : '');
+    give(t);
+  }
+  function forceGive(A) {
+    const b = V.ball, m = near(field(A), b); if (!m) return;
+    if (b.mode === 'held' && b.owner && b.owner.S !== A) {
+      if (dist(m, b) < 4) return tackle(m);
+      // passe errado do adversário, que sobra para quem estava por perto
+      const o = b.owner, L = dist(m, b); strike(o, 0.5, m.x, m.y); b.intended = m;
+      fly(m.x + m.vx * 0.3, m.y + m.vy * 0.3, clamp(L / 16, 0.3, 1.6), L > 25 ? 3 : 0.15, () => { if (dist(m, V.ball) < 2.8) give(m); });
+    } else if (b.mode !== 'air') give(m);
+  }
+  function updBall(dt) {
+    const b = V.ball;
+    b.kickT = Math.max(0, (b.kickT || 0) - dt);
+    if (b.mode === 'held') {
+      const o = b.owner;
+      if (!o || o.gone || o.leaving) { loose(0, 0); return; }
+      const fx = o.x + Math.cos(o.face) * 0.75, fy = o.y + Math.sin(o.face) * 0.75, px = b.x, py = b.y;
+      const dx = fx - b.x, dy = fy - b.y, dd = Math.hypot(dx, dy);
+      if (dd > 2.5) { const s = Math.min(dd, 22 * dt) / dd; b.x += dx * s; b.y += dy * s; }
+      else { const k = 1 - Math.exp(-16 * dt); b.x += dx * k; b.y += dy * k; }
+      b.z = Math.max(0, b.z - 8 * dt);
+      b.vx = (b.x - px) / dt; b.vy = (b.y - py) / dt; b.rot += Math.hypot(b.x - px, b.y - py) * 3.3;
+    } else if (b.mode === 'air') {
+      b.t += dt; const k = Math.min(1, b.t / b.T);
+      b.x = lerp(b.sx, b.ex, k); b.y = lerp(b.sy, b.ey, k); b.z = b.h * 4 * k * (1 - k) + lerp(b.z0, b.z1, k);
+      b.vx = (b.ex - b.sx) / b.T; b.vy = (b.ey - b.sy) / b.T; b.rot += 12 * dt;
+      if (k >= 1) { const f = b.done; loose(b.vx * b.keep, b.vy * b.keep); if (f) f(); }
+    } else if (b.mode === 'roll') {
+      const fr = Math.exp(-1.7 * dt); b.vx *= fr; b.vy *= fr;
+      b.x += b.vx * dt; b.y += b.vy * dt; b.z = Math.max(0, b.z - 9 * dt); b.rot += Math.hypot(b.vx, b.vy) * dt * 3.3;
+      if (Math.abs(b.x) > 33.8) { b.x = Math.sign(b.x) * 33.8; b.vx *= -0.3; }
+      if (Math.abs(b.y) > 51.8) { b.y = Math.sign(b.y) * 51.8; b.vy *= -0.3; }
+    } else { b.vx = 0; b.vy = 0; b.z = Math.max(0, b.z - 9 * dt); }
+  }
+
+  // ---------- jogadores ----------
+  function targetOf(a) {
+    const b = V.ball, d = a.dir;
+    if (a.go) return a.go.follow ? { x: a.go.follow.x, y: a.go.follow.y, spd: a.go.spd } : a.go;
+    if (a.recv) return a.recv;
+    if (a.o.role === 0) {
+      if (b.owner === a) return { x: a.x, y: a.y, spd: SPD.walk };
+      const t = clamp((b.y * d + GOALY) / 105, 0, 1);
+      return { x: clamp(b.x * 0.15, -3, 3), y: (-GOALY + 1.2 + t * 5.5) * d, spd: SPD.jog };
+    }
+    const att = V.poss === a.S, by = V.zoneY != null ? V.zoneY : clamp(b.y, -42, 42);
+    const x = a.bx * (att ? 1.08 : 0.8) + (b.x - a.bx) * (att ? 0.1 : 0.26);
+    let y = a.by + by * 0.55 + (att ? 5 : -5) * d;
+    if (a.o.role === 1) y = d > 0 ? Math.min(y, 14) : Math.max(y, -14);
+    if (a.o.role === 3) y = d > 0 ? Math.max(y, -30) : Math.min(y, 30);
+    if (!att && a.o.role === 1 && (y - b.y) * d > -3) y = b.y - 3 * d;
+    return { x: clamp(x, -32, 32), y: clamp(y, -50, 50), spd: att ? SPD.jog : SPD.run };
+  }
+  function dribble(a) {
+    const d = a.dir, cap = V.scene ? 44 : 24;
+    let y = a.y + 6 * d; if (y * d > cap) y = cap * d;
+    return { x: a.x * 0.96, y, spd: SPD.jog * 0.9 };
+  }
+  function press(a) {
+    const b = V.ball;
+    if (V.want === a.S) return { x: b.x, y: b.y, spd: SPD.sprint };
+    return { x: b.x * 0.92, y: b.y - 2.6 * a.dir, spd: SPD.run };
+  }
+  function steer(a, t, dt) {
+    const dx = t.x - a.x, dy = t.y - a.y, d = Math.hypot(dx, dy);
+    const want = Math.min(t.spd || SPD.jog, d * 1.6), acc = a.dive > 0 ? 40 : ACC;
+    const wx = d > 0.02 ? dx / d * want : 0, wy = d > 0.02 ? dy / d * want : 0;
+    const ex = wx - a.vx, ey = wy - a.vy, e = Math.hypot(ex, ey), k = e > 1e-6 ? Math.min(1, acc * dt / e) : 0;
+    a.vx += ex * k; a.vy += ey * k;
+    a.x += a.vx * dt; a.y += a.vy * dt;
+    const sp = Math.hypot(a.vx, a.vy), b = V.ball;
+    let f = null;
+    if (a.kick > 0 || a.dive > 0) f = null;
+    else if (sp > 0.9) f = Math.atan2(a.vy, a.vx);
+    else if (b.owner === a) f = a.dir > 0 ? Math.PI / 2 : -Math.PI / 2;
+    else f = Math.atan2(b.y - a.y, b.x - a.x);
+    if (f != null) { let df = f - a.face; while (df > Math.PI) df -= TAU; while (df < -Math.PI) df += TAU; a.face += df * Math.min(1, dt * 9); }
+  }
+  function separate(list) {
+    for (let i = 0; i < list.length; i++) for (let j = i + 1; j < list.length; j++) {
+      const a = list[i], c = list[j], dx = c.x - a.x, dy = c.y - a.y, d = Math.hypot(dx, dy);
+      if (d > 0.001 && d < 1.15) { const p = (1.15 - d) / 2 / d; a.x -= dx * p; a.y -= dy * p; c.x += dx * p; c.y += dy * p; }
+    }
+  }
+  function carrierAI(o, dt) {
+    if (o.go) return;
+    o.holdT -= dt; if (o.holdT > 0) return;
+    const t = o.o.role === 0 ? wpick(field(o.S), a => (a.o.role === 1 ? 2 : a.o.role === 2 ? 1.2 : 0.3) / (1 + dist(a, o) / 30)) : choosePass(o);
+    if (t) pass(o, t); else o.holdT = 0.6;
   }
   function simulate(dt) {
-    const b = V.ball;
-    let presser = null;
-    if (b.owner && !V.scene) { const l = field(b.owner.S === V.my ? V.op : V.my); if (l.length) presser = near(l, b); }
-    const zy = V.zoneY != null ? V.zoneY : clamp(b.y, -34, 34);
-    for (const a of V.acts.values()) {
-      if (a.gone) continue;
-      const d = a.dir, has = V.poss === a.S;
-      let tx, ty, sp = 7;
-      if (a.sc) { tx = a.sc.x; ty = a.sc.y; sp = a.sc.sp || 8.5; }
-      else if (a.o.role === 0) { tx = clamp(b.x * 0.14, -3.2, 3.2); ty = (-50 + clamp((b.y * d + 30) / 80, 0, 1) * 5.5) * d; sp = 5; }
-      else if (a === presser) { tx = b.owner.x; ty = b.owner.y + 1.6 * b.owner.dir; sp = 6.6; }
-      else { tx = a.bx * (has ? 1.1 : 0.92) + (b.x - a.bx) * 0.16; ty = a.by + zy * 0.5 + (has ? 5 : -3) * d + (a === b.owner ? 3 * d : 0); if (a === b.owner) sp = 5.4; }
-      if (!a.leaving) { tx = clamp(tx, -33, 33); ty = clamp(ty, -52, 52); }
-      const dx = tx - a.x, dy = ty - a.y, dd = Math.hypot(dx, dy), v = Math.min(sp, dd * 3.2);
-      if (dd > 0.05) { a.x += dx / dd * v * dt; a.y += dy / dd * v * dt; }
-      if (a.kick <= 0 && a.dive <= 0) { if (dd > 0.7) a.face = Math.atan2(dy, dx); else if (a !== b.owner) a.face = Math.atan2(b.y - a.y, b.x - a.x); else a.face = d > 0 ? Math.PI / 2 : -Math.PI / 2; }
+    const b = V.ball, acts = [];
+    for (const a of V.acts.values()) if (!a.gone) acts.push(a);
+    let presser = null; const chasers = [];
+    if (b.mode === 'held' && b.owner) presser = near(field(other(b.owner.S)).filter(a => !a.go && !a.recv), b);
+    else if (b.mode === 'roll') for (const S of [V.my, V.op]) {
+      const it = b.intended && b.intended.S === S && !b.intended.gone && !b.intended.leaving ? b.intended : null;
+      if (V.att && S !== V.att) continue;
+      const c = it || near(team(S).filter(a => !a.go && (a.o.role > 0 || inBox(a, b))), b); if (c) chasers.push(c);
+    }
+    for (const a of acts) {
+      let t = targetOf(a);
+      if (b.mode === 'roll' && a === b.intended) t = { x: b.x + b.vx * 0.25, y: b.y + b.vy * 0.25, spd: SPD.sprint };
+      else if (!a.go && !a.recv) {
+        if (b.owner === a && a.o.role > 0) t = dribble(a);
+        else if (a === presser) t = press(a);
+        else if (chasers.includes(a)) t = { x: b.x + b.vx * 0.25, y: b.y + b.vy * 0.25, spd: a.S === V.poss || a.S === V.want ? SPD.sprint : SPD.run };
+      }
+      steer(a, t, dt);
       a.kick = Math.max(0, a.kick - dt); a.jump = Math.max(0, a.jump - dt); a.slide = Math.max(0, a.slide - dt);
       if (a.dive > 0) { a.dive -= dt; a.diveExt = Math.min(1.2, a.diveExt + dt * 4.5); } else a.diveExt = Math.max(0, a.diveExt - dt * 1.5);
       if (a.cele > 0) a.cele = Math.max(0, a.cele - dt);
+      if (a.go && a.go.tmp && dist(a, a.go) < 0.6) a.go = null;
+      if (a.leaving && Math.abs(a.x) > 35.5) { a.gone = true; a.fig.visible = false; }
     }
-    if (b.mode === 'held' && b.owner) {
-      const o = b.owner, tx = o.x + Math.cos(o.face) * 0.9, ty = o.y + Math.sin(o.face) * 0.9;
-      b.rot += Math.hypot(tx - b.x, ty - b.y) * 2.2; b.vx = 0; b.vy = 0; b.x = tx; b.y = ty; b.z = 0;
-    } else if (b.mode === 'fly') {
-      b.t += dt; const k = Math.min(1, b.t / b.T);
-      b.x = lerp(b.sx, b.ex, k); b.y = lerp(b.sy, b.ey, k); b.z = b.h * 4 * k * (1 - k) + lerp(b.z0, b.z1, k); b.rot += 14 * dt;
-      if (k >= 1) { b.mode = 'free'; const f = b.done; b.done = null; if (f) f(); else { b.vx = 0; b.vy = 0; } }
+    separate(acts.filter(a => !a.leaving && a.dive <= 0));
+    if (presser && V.want === presser.S && b.owner && dist(presser, b.owner) < 1.45) tackle(presser);
+    if (b.mode === 'roll' && b.z < 1) {
+      let best = null, bd = 1.3;
+      for (const a of acts) { if (a.leaving || (a === b.kicker && b.kickT > 0) || (V.att && a.S !== V.att)) continue; const d = dist(a, b); if (d < bd) { bd = d; best = a; } }
+      if (best) give(best);
     }
+    if (b.mode === 'held' && b.owner && !V.scene) carrierAI(b.owner, dt);
+    updBall(dt);
   }
-  function endScene() { V.scene = false; V.zoneY = null; for (const a of V.acts.values()) if (!a.leaving) a.sc = null; }
-  function restart(S) { endScene(); const g = keeper(S) || field(S)[0]; if (g) give(g); V.passT = 0.7; V.poss = S; }
+
+  // ---------- roteiros ----------
+  function endScene() { V.scene = false; V.zoneY = null; V.att = null; for (const a of V.acts.values()) if (!a.leaving) a.go = null; }
+  function kickTaker(S) { const l = field(S); return near(l.filter(a => a.o.role === 3), { x: 0, y: 0 }) || near(l, { x: 0, y: 0 }); }
   function kickoff(S) {
-    V.scene = true; V.zoneY = 0; V.poss = S;
-    for (const a of V.acts.values()) if (!a.gone && !a.leaving) { a.sc = { x: a.bx, y: a.by, sp: 12 }; a.cele = 0; }
-    place(0, 0);
-    V.q.unshift([1.3, () => {}], [0.25, () => { SFX.whistle(1); ring(0, 0, '#ffffff', 2, 10, 0.6); const l = field(S).filter(a => a.o.role >= 2); const k = near(l.length ? l : field(S), { x: 0, y: 0 }); endScene(); if (k) give(k); V.passT = 0.3; }]);
+    const d = dirOf(S);
+    return [
+      step(() => {
+        V.scene = true; V.want = null; V.poss = S; V.zoneY = 0;
+        for (const a of V.acts.values()) if (!a.gone && !a.leaving) { const y = a.o.role === 0 ? a.by : a.dir > 0 ? Math.min(a.by, -1.5) : Math.max(a.by, 1.5); a.go = { x: a.bx, y, spd: clamp(Math.hypot(a.bx - a.x, y - a.y) / 3.5, SPD.run, SPD.sprint) }; a.recv = null; }
+        const tk = kickTaker(S); if (tk) tk.go = { x: 0, y: -0.8 * d, spd: SPD.jog };
+        place(0, 0);
+      }),
+      until(() => { for (const a of V.acts.values()) if (!a.gone && !a.leaving && a.go && dist(a, a.go) > 2.5) return false; return true; }, 6, null, 0.5, { soft: 1 }),
+      step(() => {
+        SFX.whistle(1); ring(0, 0, '#ffffff', 2, 10, 0.6);
+        const tk = kickTaker(S); endScene();
+        if (!tk) return;
+        give(tk); const m = near(field(S).filter(a => a !== tk && a.o.role === 2), { x: 0, y: -10 * d });
+        if (m) pass(tk, m);
+      })
+    ];
+  }
+  function goalKick(D) {
+    const d = dirOf(D), g = keeper(D), x = rnd(-6, 6), y = (-GOALY + 5.5) * d;
+    return [
+      step(() => { place(x, y); V.scene = true; V.poss = D; if (g) g.go = { x, y: y - 1.1 * d, spd: SPD.jog }; }),
+      until(() => !g || dist(g, { x, y: y - 1.1 * d }) < 1.2, 3.5, null, 0.4),
+      step(() => {
+        endScene(); if (!g) return;
+        give(g); const t = wpick(field(D), a => (a.o.role >= 2 ? 1 : 0.35));
+        if (t) pass(g, t, { h: 6 });
+      })
+    ];
   }
   function goalFX(e, A, tx, dir) {
-    const my = A === V.my, col = V.kits[my ? 0 : 1].shirt, gy = 52.5 * dir, g = dir > 0 ? goals.top : goals.bot;
+    const my = A === V.my, col = V.kits[my ? 0 : 1].shirt, gy = GOALY * dir, g = dir > 0 ? goals.top : goals.bot;
     V.shown[my ? 0 : 1]++; hud(); pop(my ? '#hSm' : '#hSo');
     g.flash.material.color.set(col); g.flashT = 1; g.netKick = 1;
     burst(tx, gy, [col, '#ffffff', '#ffd23f'], 170, 30, 1.2, 1.1, 0.9);
@@ -1950,122 +2212,209 @@ const GL = (() => {
     big('Gol!', `${e.n}, ${e.m}'`, my ? '#ffffff' : col);
     tick(e.m, '⚽ ' + e.x);
     SFX.goal(my, V.home);
-    for (const a of team(A)) a.cele = 2.3;
-    const sh = live(e.pid); if (sh) sh.sc = { x: (sh.x > 0 ? 1 : -1) * 24, y: 44 * dir, sp: 7 };
-    drop();
+    for (const a of team(A)) a.cele = 2.8;
   }
-  function shoot(e, sh, A, D, dir, hz) {
-    const b = V.ball, gy = 52.5 * dir, gk = keeper(D), side = R() < 0.5 ? -1 : 1, mine = A === V.my;
-    if (!hz) { place(sh.x, sh.y + 0.7 * dir); kick(sh, 1, 0, gy); }
-    const T = clamp(Math.hypot(b.x, gy - b.y) / 34, 0.26, 0.75), z0 = hz || 0, after = [];
-    const dive = (s, x) => { if (!gk) return; gk.dive = 0.75; gk.diveDir = s; gk.sc = { x, y: gy - 1.1 * dir, sp: 9 }; };
+  function celebrate(sh, A, D, d) {
+    const cx = (sh.x >= 0 ? 1 : -1) * 27, cy = (GOALY - 5) * d;
+    sh.go = { x: cx, y: cy, spd: SPD.sprint };
+    for (const a of field(A)) if (a !== sh) a.go = a.y * d > 5 ? { x: cx * 0.85 + rnd(-4, 4), y: cy - rnd(3, 9) * d, spd: SPD.run } : { x: a.x, y: a.y + 5 * d, spd: SPD.walk };
+    for (const a of team(D)) a.go = { x: a.bx, y: a.by, spd: SPD.walk };
+  }
+  function shoot(e, sh, A, D, d, hz) {
+    const b = V.ball, gy = GOALY * d, gk = keeper(D), side = R() < 0.5 ? -1 : 1, mine = A === V.my, st = [];
+    if (!hz && b.mode !== 'dead' && b.owner !== sh && dist(sh, b) < 4) give(sh);
+    if (hz) { sh.jump = 0.55; SFX.kick(0.6); } else strike(sh, 1, 0, gy);
+    sh.go = { x: sh.x + sh.vx * 0.4, y: sh.y + sh.vy * 0.4, spd: SPD.walk };
+    const L = Math.hypot(b.x, gy - b.y), T = clamp(L / 27, 0.22, 0.8), z0 = hz ? Math.max(b.z, 1.6) : 0;
+    const dive = (s, x) => { if (!gk) return; gk.dive = 0.8; gk.diveDir = s; gk.go = { x, y: gy - 1 * d, spd: 9 }; };
     if (e.t === 'gol') {
-      const tx = side * rnd(0.8, 3.1);
-      dive(R() < 0.6 ? -side : side, (R() < 0.6 ? -side : side) * 1.8);
-      fly(tx, gy + 1.5 * dir, T, rnd(0.1, 0.9), () => goalFX(e, A, tx, dir), z0, rnd(0.3, 1.5));
-      after.push([T + 2.6, () => {}], [0, () => kickoff(D)]);
+      const tx = side * rnd(0.7, 3.2), ds = R() < 0.55 ? -side : side;
+      dive(ds, ds * rnd(1.2, 2.4));
+      fly(tx, gy + 1.4 * d, T, hz ? 0.3 : rnd(0.1, 0.9), () => { dead(); goalFX(e, A, tx, d); }, z0, rnd(0.2, 1.7));
+      st.push(until(() => V.ball.mode === 'dead', 2, null, 0.5));
+      st.push(step(() => celebrate(sh, A, D, d), 3.3));
+      st.push(step(() => { V.q.unshift(...kickoff(D)); }));
     } else if (e.t === 'def') {
-      const tx = side * rnd(0.4, 2.9);
-      dive(side, tx * 0.85);
-      fly(tx, gy - 1.3 * dir, T, rnd(0.1, 0.8), () => {
-        ring(b.x, b.y, '#cfe6ff', 1, 5, 0.45); burst(b.x, b.y, ['#9fd1ff', '#ffffff'], 22, 12, 0.6, 0.45, 0.5);
-        flt(b.x, b.y, 'Defesa!', mine ? 'cool' : 'amber'); V.shake = Math.max(V.shake, 0.3); V.mood = 1;
+      const tx = side * rnd(0.3, 2.7), catchIt = R() < 0.65 || e.k === 'pen';
+      dive(side, tx * 0.95);
+      fly(tx, gy - 0.9 * d, T, hz ? 0.3 : rnd(0.1, 0.7), () => {
+        const bb = V.ball;
+        ring(bb.x, bb.y, '#cfe6ff', 1, 5, 0.45); burst(bb.x, bb.y, ['#9fd1ff', '#ffffff'], 22, 12, 0.6, 0.45, 0.5);
+        flt(bb.x, bb.y, catchIt ? 'Defesa!' : 'Espalmou!', mine ? 'cool' : 'amber'); V.shake = Math.max(V.shake, 0.3); V.mood = 1;
         if (mine === V.home) SFX.ooh(1); else SFX.cheer(0.4);
-        tick(e.m, e.x); if (gk) give(gk);
+        tick(e.m, e.x);
+        if (catchIt && gk) { give(gk); gk.holdT = 1.8; } else loose(side * rnd(5, 9), -d * rnd(2, 6));
       }, z0, rnd(0.3, 1.4));
-      after.push([T + 1.2, () => {}], [0, () => restart(D)]);
+      st.push(until(() => V.ball.mode !== 'air', 2, null, 1.1));
     } else if (e.t === 'trave') {
-      dive(side, side * 1.6);
-      fly(side * 3.73, gy, T, rnd(0.1, 0.6), () => {
-        burst(b.x, b.y, ['#ffffff', '#ffd27a'], 26, 14, 0.6, 0.5, 0.6, 18, 1.5); flt(b.x, b.y, 'Na trave!', 'amber'); V.shake = Math.max(V.shake, 0.4); V.mood = 1;
+      dive(side, side * 1.8);
+      fly(side * 3.66, gy, T, rnd(0.1, 0.6), () => {
+        const bb = V.ball;
+        burst(bb.x, bb.y, ['#ffffff', '#ffd27a'], 26, 14, 0.6, 0.5, 0.6, 18, 1.5); flt(bb.x, bb.y, 'Na trave!', 'amber'); V.shake = Math.max(V.shake, 0.4); V.mood = 1;
         SFX.post(); SFX.ooh(1); tick(e.m, e.x);
-        fly(side * rnd(7, 15), gy - rnd(9, 15) * dir, 0.6, 2.2, null, b.z, 0);
-      }, z0, rnd(0.7, 2.1));
-      after.push([T + 1.6, () => {}], [0, () => restart(D)]);
+        loose(-side * rnd(2, 6), -d * rnd(8, 13));
+      }, z0, rnd(0.6, 2.3));
+      st.push(until(() => V.ball.mode !== 'air', 2, null, 1.2));
     } else {
-      const blk = !hz && R() < 0.3 ? near(field(D), { x: b.x * 0.6, y: b.y + (gy - b.y) * 0.4 }) : null;
+      const blk = !hz && e.k !== 'pen' && e.k !== 'falta' && R() < 0.3 ? near(field(D), { x: b.x * 0.7, y: b.y + (gy - b.y) * 0.3 }) : null;
       if (blk) {
-        const tx = lerp(b.x, 0, 0.3), ty = b.y + (gy - b.y) * 0.35;
-        blk.sc = { x: tx, y: ty, sp: 11 }; blk.slide = 0.5;
-        fly(tx, ty, T * 0.4, 0.1, () => { flt(tx, ty, 'Bloqueio', ''); burst(tx, ty, ['#ffd27a', '#ffffff'], 12, 9, 0.45, 0.35, 0.4); tick(e.m, e.x); fly(side * rnd(12, 24), ty + rnd(-8, 2) * dir, 0.6, 2.4, null); });
+        const lx = lerp(b.x, 0, 0.25), ly = b.y + (gy - b.y) * 0.22;
+        blk.go = { x: lx, y: ly, spd: SPD.sprint, tmp: 1 }; blk.slide = 0.5;
+        fly(lx, ly, T * 0.35, 0.15, () => { flt(lx, ly, 'Bloqueio', ''); burst(lx, ly, ['#ffd27a', '#ffffff'], 12, 9, 0.45, 0.35, 0.4); tick(e.m, e.x); loose(side * rnd(5, 10), -d * rnd(2, 6)); });
+        st.push(until(() => V.ball.mode !== 'air', 1.5, null, 1.0));
       } else {
-        dive(side, side * 1.2);
-        fly(side * rnd(4.8, 9), gy + 5 * dir, T * 1.15, rnd(0.2, 1.4), () => { if (mine === V.home) SFX.ooh(0.6); tick(e.m, e.x); }, z0, rnd(0.8, 5.5));
+        dive(side, side * 1.4);
+        fly(side * rnd(4.6, 9), (GOALY + 2.5) * d, T * 1.15, hz ? 0.4 : rnd(0.2, 1.4), () => { dead(); if (mine === V.home) SFX.ooh(0.6); tick(e.m, e.x); }, z0, rnd(0.6, 4.5));
+        st.push(until(() => V.ball.mode === 'dead', 2, null, 1.0));
+        st.push(step(() => { V.q.unshift(...goalKick(D)); }));
       }
-      after.push([T + 1.2, () => {}], [0, () => restart(D)]);
     }
-    V.q.unshift(...after);
+    return st;
   }
   function chanceScene(e) {
-    const A = e.s === 'h' ? V.M.h : V.M.a, D = A === V.M.h ? V.M.a : V.M.h, dir = dirOf(A), gy = 52.5 * dir, mine = A === V.my, k = e.k;
-    const sh = live(e.pid) || field(A).pop();
-    if (!sh) { tick(e.m, e.x); if (e.t === 'gol') { V.shown[mine ? 0 : 1]++; hud(); } return []; }
-    const mates = field(A).filter(a => a !== sh);
-    const as = live(e.aid) && live(e.aid) !== sh ? live(e.aid) : (mates.filter(a => a.o.role >= 2)[0] || mates[0] || sh);
-    const sx = R() < 0.5 ? -1 : 1, steps = [], st = (d, fn) => steps.push([d, fn]);
+    const A = sideOf(e.s), D = other(A), d = dirOf(A), k = e.k, mine = A === V.my, fw = field(A);
+    const sh = live(e.pid) || fw.slice().sort((p, q) => (q.y - p.y) * d)[0];
+    if (!sh) return [step(() => { tick(e.m, e.x); if (e.t === 'gol') { V.shown[mine ? 0 : 1]++; hud(); } })];
+    let as = live(e.aid);
+    if (!as || as === sh || as.o.role === 0) as = fw.filter(a => a !== sh && a.o.role >= 2).sort((p, q) => dist(p, sh) - dist(q, sh))[0] || null;
+    const side = R() < 0.5 ? -1 : 1, st = [];
     let hz = 0;
-    st(0.3, () => { V.scene = true; V.poss = A; V.mood = Math.max(V.mood, 0.6); const b = V.ball; if (!b.owner || b.owner.S !== A) { const m = near(mates.length ? mates : [sh], b); give(m); burst(b.x, b.y, ['#ffd27a', '#ffffff'], 10, 8, 0.4, 0.3, 0.4); } });
+    // 1) o time do lance precisa estar com a bola: desarme, sobra ou domínio
+    st.push(step(() => { V.scene = true; V.mood = Math.max(V.mood, 0.6); if (!owns(A)) V.want = A; }));
+    st.push(until(() => owns(A), 4, () => { if (!owns(A)) forceGive(A); V.want = null; }, 0, { soft: 1 }));
+    st.push(until(() => owns(A), 2.5, () => { V.att = A; if (!owns(A) && V.ball.mode !== 'air') forceGive(A); }));
+    // passe para quem está chegando, esperando o domínio
+    const relay = (recv, opt) => {
+      st.push(until(() => V.ball.mode !== 'air', 2.5, () => {
+        if (recv.gone || V.ball.owner === recv) return;
+        if (!owns(A)) forceGive(A);
+        const o = V.ball.owner; if (o && o !== recv) pass(o, recv, typeof opt === 'function' ? opt() : opt || {});
+      }));
+      st.push(until(() => V.ball.owner === recv || recv.gone || recv.leaving, 4.5, () => { if (V.ball.owner !== recv && V.ball.mode !== 'air' && !recv.gone) give(recv); }, 0, { info: () => `mode=${V.ball.mode} own=${V.ball.owner ? (V.ball.owner.S === A ? 'A' : 'D') + V.ball.owner.o.code : '-'} d=${Math.round(dist(recv, V.ball))} go=${!!recv.go} int=${V.ball.intended === recv}` }));
+    };
     if (k === 'pen') {
-      st(1.5, () => {
-        SFX.whistle(1, true); setTimeout(() => SFX.ooh(0.8), 300); big('Pênalti!', mine ? 'A favor' : 'Contra', '#ffd23f', true);
-        V.zoneY = 24 * dir; place(0, 41.5 * dir); sh.sc = { x: 0, y: 38 * dir };
-        for (const a of V.acts.values()) if (!a.gone && a !== sh && a.o.role > 0) a.sc = { x: clamp(a.bx * 1.2 + rnd(-3, 3), -30, 30), y: rnd(27, 33) * dir };
-        const g = keeper(D); if (g) g.sc = { x: 0, y: gy - 0.6 * dir };
-      });
-      st(0.55, () => { sh.sc = { x: 0, y: 40.4 * dir, sp: 6 }; });
+      const sx = side * rnd(2, 9), spot = { x: sx, y: 40 * d };
+      st.push(step(() => { V.zoneY = 26 * d; const o = V.ball.owner; if (o) o.go = { x: sx, y: 40 * d, spd: SPD.run }; const f = near(field(D), spot); if (f) { f.go = { follow: o || sh, spd: SPD.sprint }; V.fouler = f; } }));
+      st.push(until(() => { const o = V.ball.owner; return !o || (o.y * d > 36 && V.fouler && dist(o, V.fouler) < 1.8); }, 3.2, () => {
+        const o = V.ball.owner, f = V.fouler; V.fouler = null;
+        if (f) { f.slide = 0.55; f.go = null; } if (o) { o.slide = 0.8; o.go = null; }
+        dead(); SFX.whistle(1, true); setTimeout(() => SFX.ooh(0.8), 300); big('Pênalti!', mine ? 'A favor' : 'Contra', '#ffd23f', true);
+      }, 1.5, { soft: 1 }));
+      st.push(step(() => {
+        place(0, (GOALY - 11) * d);
+        for (const a of [...field(A), ...field(D)]) if (a !== sh) a.go = { x: clamp(a.x, -26, 26), y: rnd(29, 34) * d, spd: SPD.jog };
+        sh.go = { x: -side * 0.7, y: (GOALY - 13.6) * d, spd: SPD.run };
+        const g = keeper(D); if (g) g.go = { x: 0, y: (GOALY - 0.5) * d, spd: SPD.jog };
+      }));
+      st.push(until(() => !sh.go || dist(sh, sh.go) < 0.8, 6, null, 1.0));
+      st.push(step(() => { sh.go = { x: 0, y: (GOALY - 11.7) * d, spd: SPD.jog }; }));
+      st.push(until(() => dist(sh, V.ball) < 1.1, 2, null));
     } else if (k === 'falta') {
-      const px = rnd(-13, 13), py = rnd(25, 30) * dir, L = Math.hypot(px, gy - py);
-      st(1.4, () => {
-        SFX.whistle(1); flt(px, py, 'Falta perigosa', 'amber'); ring(px, py, '#ffffff', 1, 4, 0.4);
-        V.zoneY = 26 * dir; place(px, py); sh.sc = { x: px - 0.3, y: py - 3.2 * dir };
-        const wx = px - px * 9.15 / L, wy = py + (gy - py) * 9.15 / L;
-        field(D).sort((a, b2) => Math.hypot(a.x - wx, a.y - wy) - Math.hypot(b2.x - wx, b2.y - wy)).slice(0, 3).forEach((a, i) => { a.sc = { x: wx + (i - 1) * 0.95, y: wy, sp: 10 }; });
-      });
-      st(0.5, () => { sh.sc = { x: px, y: py - 1.1 * dir, sp: 6 }; });
+      const px = side * rnd(3, 14), py = rnd(24, 29) * d, spot = { x: px, y: py };
+      st.push(step(() => { V.zoneY = 18 * d; const o = V.ball.owner; if (o) o.go = { x: px, y: py, spd: SPD.run }; const f = near(field(D), spot); if (f) { f.go = { follow: o || sh, spd: SPD.sprint }; V.fouler = f; } }));
+      st.push(until(() => { const o = V.ball.owner; return !o || (dist(o, spot) < 3 && V.fouler && dist(o, V.fouler) < 1.8); }, 3, () => {
+        const o = V.ball.owner, f = V.fouler; V.fouler = null;
+        if (f) { f.slide = 0.5; f.go = null; } if (o) { o.slide = 0.7; o.go = null; }
+        dead(); SFX.whistle(1); ring(V.ball.x, V.ball.y, '#ffffff', 1, 4, 0.4); flt(V.ball.x, V.ball.y, 'Falta', '');
+      }, 1.2, { soft: 1 }));
+      st.push(step(() => {
+        const bb = V.ball, fx_ = clamp(bb.x, -16, 16), fy = d > 0 ? clamp(bb.y, 22, 32) : clamp(bb.y, -32, -22);
+        place(fx_, fy); V.fk = { x: fx_, y: fy };
+        const gy = GOALY * d, L = Math.hypot(fx_, gy - fy), wx = fx_ - fx_ * 9.15 / L, wy = fy + (gy - fy) * 9.15 / L;
+        field(D).sort((p, q) => Math.hypot(p.x - wx, p.y - wy) - Math.hypot(q.x - wx, q.y - wy)).slice(0, 3).forEach((a, i) => { a.go = { x: wx + (i - 1) * 0.9, y: wy, spd: SPD.run }; });
+        sh.go = { x: fx_ - side * 0.5, y: fy - 2.8 * d, spd: SPD.run };
+        flt(fx_, fy, 'Falta perigosa', 'amber');
+      }));
+      st.push(until(() => !sh.go || dist(sh, sh.go) < 0.8, 6, null, 0.8));
+      st.push(step(() => { sh.go = { x: V.fk.x, y: V.fk.y - 0.8 * d, spd: SPD.jog }; }));
+      st.push(until(() => dist(sh, V.ball) < 1.1, 2, null));
     } else if (k === 'esc') {
-      const cx = 33.6 * sx, cy = 52 * dir, hx = rnd(-4.5, 4.5), hy = (52.5 - rnd(6, 10)) * dir, tk = as !== sh ? as : (mates[0] || sh);
+      const cx = 33.6 * side, cy = (GOALY - 0.3) * d, hx = rnd(-5, 5), hy = (GOALY - rnd(6, 10)) * d;
+      const taker = near(fw.filter(a => a !== sh), { x: cx, y: cy }) || sh;
       hz = 1.9;
-      st(1.6, () => {
-        flt(cx * 0.88, cy * 0.94, 'Escanteio', ''); SFX.ooh(0.35); V.zoneY = 36 * dir; place(cx, cy);
-        tk.sc = { x: cx - sx * 0.3, y: cy - 1.4 * dir, sp: 11 }; sh.sc = { x: hx + rnd(-3, 3), y: hy - 4 * dir, sp: 9 };
-        mates.filter(a => a !== tk).slice(-3).forEach(a => { a.sc = { x: rnd(-9, 9), y: (52.5 - rnd(5, 14)) * dir, sp: 9 }; });
-        field(D).sort((a, b2) => Math.abs(b2.by) - Math.abs(a.by)).slice(0, 5).forEach(a => { a.sc = { x: rnd(-8, 8), y: (52.5 - rnd(3, 11)) * dir, sp: 9 }; });
-      });
-      st(0.92, () => { kick(tk, 0.8, hx, hy); sh.sc = { x: hx, y: hy - 0.4 * dir, sp: 10 }; fly(hx, hy, 0.9, 5, null, 0, 1.9); });
-      st(0.02, () => { sh.jump = 0.55; SFX.kick(0.6); });
+      st.push(step(() => { V.zoneY = 30 * d; const o = V.ball.owner; if (o) o.go = { x: side * 22, y: 37 * d, spd: SPD.run }; }));
+      st.push(until(() => { const o = V.ball.owner; return !o || o.y * d > 31; }, 4, () => {
+        const o = V.ball.owner, blk = near(field(D), V.ball);
+        if (blk) { blk.slide = 0.45; blk.go = { x: V.ball.x, y: V.ball.y + 1.5 * d, spd: SPD.sprint, tmp: 1 }; }
+        if (o) { strike(o, 0.6, side * 30, GOALY * d); o.go = null; }
+        fly(side * rnd(14, 26), (GOALY + 2.5) * d, 0.6, 0.8, () => dead(), 0, 0, 0);
+      }, 0, { soft: 1 }));
+      st.push(until(() => V.ball.mode === 'dead', 2, () => {
+        SFX.whistle(1); flt(cx * 0.9, cy * 0.94, 'Escanteio', ''); SFX.ooh(0.35);
+        taker.go = { x: cx - side * 0.9, y: cy - 1.3 * d, spd: SPD.sprint };
+        sh.go = { x: hx + side * rnd(3, 6), y: hy - 5 * d, spd: SPD.jog };
+        fw.filter(a => a !== taker && a !== sh && a.o.role >= 2).slice(0, 3).forEach(a => { a.go = { x: rnd(-9, 9), y: (GOALY - rnd(6, 15)) * d, spd: SPD.jog }; });
+        field(D).sort((p, q) => (q.y - p.y) * d).slice(0, 6).forEach(a => { a.go = { x: rnd(-9, 9), y: (GOALY - rnd(3, 12)) * d, spd: SPD.jog }; });
+        const g = keeper(D); if (g) g.go = { x: 0, y: (GOALY - 0.8) * d, spd: SPD.jog };
+      }, 0.5));
+      st.push(step(() => place(cx, cy)));
+      st.push(until(() => !taker.go || dist(taker, taker.go) < 1, 6, null, 0.6));
+      st.push(step(() => { sh.go = { x: hx, y: hy, spd: SPD.sprint }; give(taker); strike(taker, 0.8, hx, hy); fly(hx, hy, 0.95, 5.5, null, 0, 1.9, 0); }));
+      st.push(until(() => V.ball.mode !== 'air', 1.5, null));
     } else {
       const far = k === 'longe', fast = k === 'contra';
-      const ax = rnd(11, 21) * sx, ay = (far ? 12 : fast ? 16 : 28) * dir, tx = rnd(-8, 8), ty = (far ? rnd(24, 28) : fast ? rnd(35, 39) : rnd(40, 45)) * dir;
-      st(0.25, () => { V.zoneY = (far ? 16 : fast ? 10 : 30) * dir; if (as !== sh) as.sc = { x: ax, y: ay, sp: 9.5 }; sh.sc = { x: tx * 0.7, y: ty - 9 * dir, sp: 8.5 }; });
-      st(0.72, () => { const o = V.ball.owner; if (o && o !== as && as !== sh) { kick(o, 0.5, ax, ay); fly(ax, ay, 0.62, Math.hypot(ax - o.x, ay - o.y) > 22 ? 2.6 : 0.2, () => give(as)); } });
-      st(0.5, () => { if (as !== sh && V.ball.owner !== as) give(as); sh.sc = { x: tx, y: ty, sp: 10 }; });
-      st(0.62, () => { if (as !== sh) { kick(as, 0.6, tx, ty); fly(tx, ty, 0.55, far ? 0.2 : 1.1, null); } });
+      const tx = side * rnd(far ? 0 : 3, far ? 10 : 10), ty = (far ? rnd(21, 26) : fast ? rnd(26, 31) : rnd(36, 42)) * d;
+      if (fast) {
+        st.push(step(() => { V.zoneY = 0; sh.go = { x: tx, y: ty, spd: SPD.sprint }; }, 0.3));
+        relay(sh, () => ({ x: tx, y: ty, h: 3.5 }));
+        st.push(step(() => { sh.go = { x: tx * 0.5, y: rnd(37, 41) * d, spd: SPD.sprint }; }));
+        st.push(until(() => sh.y * d > 35, 1.8, null, 0, { soft: 1 }));
+      } else {
+        const ax = as ? lerp(as.x, side * rnd(8, 18), 0.5) : side * rnd(8, 18), ay = (as ? clamp(as.y * d + 9, 14, 25) : rnd(17, 25)) * d;
+        st.push(step(() => { V.zoneY = (far ? 16 : 24) * d; if (as) as.go = { x: ax, y: ay, spd: SPD.run }; sh.go = { x: tx * 0.6, y: ty - (far ? 3 : 9) * d, spd: SPD.run }; }));
+        if (as) { st.push(until(() => dist(as, { x: ax, y: ay }) < 9, 3, null, 0, { soft: 1 })); relay(as, { x: ax, y: ay }); }
+        st.push(step(() => { sh.go = { x: tx, y: ty, spd: far ? SPD.run : SPD.sprint }; }, 0.3));
+        relay(sh, () => ({ x: tx, y: ty }));
+        st.push(step(() => { sh.go = { x: tx * 0.85, y: ty + 2 * d, spd: SPD.jog }; }, far ? 0.4 : 0.25));
+      }
     }
-    st(0, () => shoot(e, sh, A, D, dir, hz));
-    return steps;
+    st.push(step(() => { V.q.unshift(...shoot(e, sh, A, D, d, hz)); }));
+    return st;
   }
   function cardScene(e) {
     const a = live(e.pid), red = e.t === 'red';
-    if (!a) { tick(e.m, (red ? '🟥 ' : '🟨 ') + e.x); syncActors(); return []; }
-    const mine = a.S === V.my;
-    return [[red ? 1.5 : 1.0, () => {
-      SFX.whistle(1); ring(a.x, a.y, '#ffffff', 1, 4, 0.4); flt(a.x, a.y, red ? 'Expulso!' : 'Amarelo', red ? '' : 'amber'); tick(e.m, (red ? '🟥 ' : '🟨 ') + e.x);
-      if (mine === V.home) SFX.boo(); else if (red) SFX.cheer(0.6);
-      if (red) { big('Vermelho', last(a.o.p.n), '#ff6f66', true); a.leaving = true; a.sc = { x: -38, y: a.y, sp: 6 }; if (V.ball.owner === a) drop(); }
-    }], [0, () => { if (red) { a.gone = true; a.fig.visible = false; } }]];
+    if (!a) return [step(() => { tick(e.m, (red ? '🟥 ' : '🟨 ') + e.x); syncActors(); })];
+    const b = V.ball, vict = b.owner && b.owner.S !== a.S && dist(a, b.owner) < 18 ? b.owner : near(field(other(a.S)), a);
+    return [
+      step(() => { V.scene = true; if (vict) a.go = { follow: vict, spd: SPD.sprint }; }),
+      until(() => !vict || dist(a, vict) < 1.5, 3.2, () => {
+        V.dbg.card = (V.dbg.card || 0) + 1;
+        a.go = { x: a.x, y: a.y, spd: SPD.walk }; a.slide = 0.5; if (vict) { vict.slide = 0.7; vict.go = { x: vict.x, y: vict.y, spd: SPD.walk }; }
+        SFX.whistle(1); ring(a.x, a.y, '#ffffff', 1, 4, 0.4); flt(a.x, a.y, red ? 'Expulso!' : 'Amarelo', red ? '' : 'amber'); tick(e.m, (red ? '🟥 ' : '🟨 ') + e.x);
+        if ((a.S === V.my) === V.home) SFX.boo(); else if (red) SFX.cheer(0.6);
+        if (red) big('Vermelho', last(a.o.p.n), '#ff6f66', true);
+        if (V.ball.mode !== 'air') dead();
+      }, 1.4, { soft: 1 }),
+      step(() => {
+        if (red) leave(a, SPD.walk);
+        const v = vict && !vict.gone && !vict.leaving ? vict : near(field(other(a.S)), V.ball);
+        endScene(); if (v) { give(v); v.holdT = 0.6; }
+      })
+    ];
   }
   function injScene(e) {
     const a = live(e.pid);
-    return [[1.3, () => { if (a) { flt(a.x, a.y, 'Lesão', ''); a.slide = 1.2; if (V.ball.owner === a) drop(); } tick(e.m, '🩹 ' + e.x); }], [0, () => { if (V.M.pend) { V.block = true; injSheet(); } else syncActors(); }]];
+    return [
+      step(() => { V.scene = true; if (a) { a.slide = 2.2; a.go = { x: a.x, y: a.y, spd: 0.2 }; flt(a.x, a.y, 'Lesão', ''); if (V.ball.owner === a) dead(); } tick(e.m, '🩹 ' + e.x); }, 1.7),
+      step(() => { if (V.M.pend) { V.block = true; injSheet(); } else syncActors(); })
+    ];
   }
   function handle(e) {
-    const lazy = f => V.q.push([0, () => { V.q.unshift(...f(e)); }]);
+    const lazy = f => V.q.push(step(() => { V.q.unshift(...f(e)); }));
     if (e.t === 'gol' || e.t === 'def' || e.t === 'fora' || e.t === 'trave') lazy(chanceScene);
     else if (e.t === 'ya' || e.t === 'red') lazy(cardScene);
     else if (e.t === 'inj') lazy(injScene);
-    else if (e.t === 'sub') V.q.push([0.4, () => { tick(e.m, '🔁 ' + e.x); syncActors(); }]);
-    else if (e.t === 'ht') V.q.push([1.7, () => { SFX.whistle(2, true); big('Intervalo', `${V.shown[0]} × ${V.shown[1]}`, '#fff', true); tick(null, 'Fim do primeiro tempo'); }], [0, () => { V.block = true; V.half = true; hud(); halfSheet(); }]);
-    else if (e.t === 'ft') V.q.push([2.1, () => { SFX.whistle(3, true); const p = V.M.pso; V.ended = true; hud(); big(p ? 'Pênaltis' : 'Fim de jogo', p ? `${V.my.home ? p.sc[0] : p.sc[1]} × ${V.my.home ? p.sc[1] : p.sc[0]}` : `${V.shown[0]} × ${V.shown[1]}`, '#fff', true); }], [0, () => endMatchUI()]);
+    else if (e.t === 'sub') V.q.push(step(() => { tick(e.m, '🔁 ' + e.x); syncActors(); }, 0.4));
+    else if (e.t === 'ht') V.q.push(step(() => {
+      SFX.whistle(2, true); big('Intervalo', `${V.shown[0]} × ${V.shown[1]}`, '#fff', true); tick(null, 'Fim do primeiro tempo');
+      if (V.ball.mode !== 'air') dead(); V.scene = true;
+      for (const a of V.acts.values()) if (!a.gone && !a.leaving) a.go = { x: a.x * 0.9, y: a.y * 0.9, spd: SPD.walk };
+    }, 1.8), step(() => { V.block = true; V.half = true; hud(); halfSheet(); }));
+    else if (e.t === 'ft') V.q.push(step(() => {
+      SFX.whistle(3, true); const p = V.M.pso; V.ended = true; hud(); V.scene = true; if (V.ball.mode !== 'air') dead();
+      for (const a of V.acts.values()) if (!a.gone && !a.leaving) a.go = { x: a.x, y: a.y, spd: SPD.walk };
+      big(p ? 'Pênaltis' : 'Fim de jogo', p ? `${V.my.home ? p.sc[0] : p.sc[1]} × ${V.my.home ? p.sc[1] : p.sc[0]}` : `${V.shown[0]} × ${V.shown[1]}`, '#fff', true);
+    }, 2.1), step(() => endMatchUI()));
   }
   function engineStep() {
     const M = V.M;
@@ -2074,16 +2423,20 @@ const GL = (() => {
     const news = M.ev.slice(V.seen); V.seen = M.ev.length;
     hud();
     for (const e of news) handle(e);
-    if (!V.q.length && M.min % 4 === 0) { const want = R() < possOf(M) ? M.h : M.a; if (want !== V.poss) turnover(want); }
+    if (!V.q.length && M.min % 4 === 0) { const want = R() < possOf(M) ? M.h : M.a; if (!owns(want)) V.want = want; }
   }
   function direct(dt) {
     if (V.wait > 0) V.wait -= dt;
-    while (V.wait <= 0 && V.q.length && !V.block) { const s = V.q.shift(); V.wait += s[0]; s[1](); }
+    while (!V.block && V.q.length && V.wait <= 0) {
+      const s = V.q[0];
+      if (s.until && !s.until()) { s.tw = (s.tw || 0) + dt; if (s.tw < s.max) break; if (!s.soft) { V.dbg.to++; (V.dbg.l = V.dbg.l || []).push(String(s.until).slice(0, 60) + (s.info ? ' | ' + s.info() : '')); } }
+      V.q.shift(); V.wait += s.after || 0; if (s.fn) s.fn();
+    }
     if (V.q.length || V.wait > 0 || V.block || V.ended) return;
     if (V.scene) endScene();
+    if (V.ball.mode === 'dead') { const m = near(field(V.poss || V.my), V.ball); if (m) give(m); }
     V.minAcc += dt;
-    if (V.minAcc >= MIN) { V.minAcc -= MIN; engineStep(); if (V.q.length || V.block) return; }
-    openPlay(dt);
+    if (V.minAcc >= MIN) { V.minAcc -= MIN; engineStep(); }
   }
   function drawMini() {
     const el = $('#mini'), mg = el.getContext('2d'), w = 124, h = 192;
@@ -2101,7 +2454,7 @@ const GL = (() => {
     requestAnimationFrame(frame);
     const dt = Math.min(0.05, (now - lastT) / 1000); lastT = now; T0 += dt;
     const paused = U.sheet || V.paused, sdt = paused ? 0 : dt * V.speed, b = V.ball;
-    if (sdt) { direct(sdt); simulate(sdt); }
+    if (sdt) { let r = sdt; while (r > 1e-6) { const h = Math.min(r, 1 / 40); direct(h); simulate(h); r -= h; } }
     for (const a of V.acts.values()) {
       if (a.gone) continue;
       const carrier = b.owner === a;
@@ -2148,22 +2501,22 @@ const GL = (() => {
       for (const a of V.acts.values()) a.fig.dispose();
       V.acts.clear(); floats.splice(0).forEach(f => f.d.remove()); $('#ticker').innerHTML = '';
       const alt = o.alt;
-      Object.assign(V, { on: true, M, my, op, q: [], wait: 0, block: false, ended: false, scene: false, zoneY: null, minAcc: 0, passT: 0.4, shake: 0, seen: 0, shown: [0, 0], half: false, mood: 0, paused: false, home: my.home, speed: o.speed, kits: [kitFor(my.c, false), kitFor(op.c, alt)] });
-      V.ball = { x: 0, y: 0, z: 0, vx: 0, vy: 0, rot: 0, owner: null, mode: 'free', done: null };
+      Object.assign(V, { dbg: { to: 0 }, on: true, M, my, op, q: [], wait: 0, block: false, ended: false, scene: false, zoneY: null, minAcc: 0, want: null, poss: null, shake: 0, seen: 0, shown: [0, 0], half: false, mood: 0, paused: false, home: my.home, speed: o.speed, kits: [kitFor(my.c, false), kitFor(op.c, alt)] });
+      V.ball = { x: 0, y: 0, z: 0, vx: 0, vy: 0, rot: 0, owner: null, mode: 'dead', done: null, kicker: null, kickT: 0, pop: false };
       setFieldTheme(M.cup ? 'C' : my.c.div === 0 ? 'A' : 'B');
       for (const S of [my, op]) for (const e of S.on) if (!e.out) addActor(S, e, false);
       ballV.x = 0; ballV.y = 0; ballV.z = 0; ballV.vis = 0;
       resize(); hud();
       const f = fieldFit(); cam.cD = f.D * 1.1; cam.cx = 0; cam.cz = f.z; cam.ctilt = 0.1;
       big('Bola rolando', o.label, '#fff', true);
-      kickoff(my.home ? my : op);
+      V.q.push(...kickoff(my.home ? my : op));
       lastT = performance.now(); requestAnimationFrame(frame);
     },
     stop() { V.on = false; SFX.update(0.1, 0, false, 0); },
     resume() {
       if (!V.on) return;
       syncActors(); V.block = false;
-      if (V.half) { V.half = false; kickoff(V.my.home ? V.op : V.my); }
+      if (V.half) { V.half = false; V.q.unshift(...kickoff(V.my.home ? V.op : V.my)); }
     },
     sync: () => { if (V.on) syncActors(); },
     setSpeed(s) { V.speed = s; },
@@ -2217,16 +2570,32 @@ function tags(p) {
   let t = '';
   if (p.inj) t += ` <span class="tag red">Lesão ${p.inj} sem</span>`;
   if (p.sus) t += ' <span class="tag red">Suspenso</span>';
-  if (p.list) t += ' <span class="tag blue">À venda</span>';
+  if (p.list) t += ` <span class="tag blue">À venda · ${money(p.list)}</span>`;
   if (p.prom) t += ' <span class="tag yel">Prometido</span>';
   if (p.jr) t += ' <span class="tag">Júnior</span>';
   return t;
 }
 function prow(p, o = {}) {
-  const sub = o.sub || `${POS[p.pos]} · ${p.age} anos${p.tr && knows(p) ? ' · ' + TRAITS[p.tr].n : ''}`;
+  const sub = o.sub || `${p.sp} · ${p.age} anos${p.tr && knows(p) ? ' · ' + TRAITS[p.tr].n : ''}`;
   const r = o.r != null ? o.r : `<span class="mini"><span>${Math.round(p.en)}</span>${bar(p.en, enCls(p.en))}</span>`;
-  return `<button class="prow ${o.off ? 'off' : ''}" data-a="${o.a || 'player'}" data-id="${p.id}" ${o.x || ''}>${o.m || pmag(p)}<span class="grow"><b>${esc(p.n)}${tags(p)}</b><small>${sub}</small></span>${r}</button>`;
+  return `<button class="prow ${o.off ? 'off' : ''} ${o.cls || ''}" data-a="${o.a || 'player'}" data-id="${p.id}" ${o.x || ''}>${o.m || pmag(p)}<span class="grow"><b>${esc(p.n)}${tags(p)}</b><small>${sub}</small></span>${r}</button>`;
 }
+const GROUP_N = ['Goleiros', 'Defensores', 'Meio-campistas', 'Atacantes'];
+const spIdx = p => SP_ORDER.indexOf(p.sp);
+// lista agrupada por setor; dentro do grupo, pela ordem das posições e depois por `key`
+function grouped(items, row, key, first) {
+  const P = x => (x.p || x);
+  let h = '';
+  const order = first != null ? [first, ...[0, 1, 2, 3].filter(g => g !== first)] : [0, 1, 2, 3];
+  for (const g of order) {
+    const l = items.filter(x => P(x).pos === g).sort((a, b) => spIdx(P(a)) - spIdx(P(b)) || key(b) - key(a));
+    if (l.length) h += `<div class="grp"><span>${GROUP_N[g]}</span><small>${l.length}</small></div>` + l.map(row).join('');
+  }
+  return h;
+}
+// titular: faixa amarela + posição no time
+function starterInfo(p) { const m = me(), k = m.lineup.indexOf(p.id); return k < 0 ? null : { k, code: codesOf(m)[k] }; }
+const xiPill = st => `<span class="xi">${st.code}</span>`;
 const seg = (k, opts, cls = '') => `<div class="seg ${cls}">${opts.map(([v, l]) => `<button class="${U.sub[k] === v ? 'on' : ''}" data-a="sub" data-k="${k}" data-v="${v}">${l}</button>`).join('')}</div>`;
 const kv = (k, v, cls = '') => `<div class="kv"><span>${k}</span><b class="${cls}">${v}</b></div>`;
 const ctrEnd = p => G.year + p.ctr - 1;
@@ -2287,13 +2656,19 @@ VIEW.home = () => {
 };
 
 // ---------- Time ----------
+function squadRow(p) {
+  const st = starterInfo(p);
+  if (st) { const at = Math.round(ovrAt(p, st.code)), d = at - ovr(p); return prow(p, { cls: 'st', sub: `${p.sp} · ${p.age} anos${d ? ` · ${at} como ${st.code} (${d})` : ''}`, r: `<span class="right">${xiPill(st)}<span class="mini"><span>${Math.round(p.en)}</span>${bar(p.en, enCls(p.en))}</span></span>` }); }
+  return prow(p, { off: !avail(p) });
+}
+const pcCls = (p, code) => { const k = fitKind(p, code); return k === 'same' || (p.tr === 'coringa' && k !== 'other') ? '' : k === 'near' ? 'near' : 'bad'; };
 function pitchV(c) {
-  const roles = rolesOf(c);
+  const codes = codesOf(c);
   let h = '';
   c.lineup.forEach((id, k) => {
     const p = pl(id); if (!p) return;
-    const r = roles[k], sp = c.spots[k], odd = r !== p.pos && p.tr !== 'coringa';
-    h += `<button class="slot" style="left:${sp.x}%;top:${sp.y}%" data-a="slot" data-k="${k}" aria-label="${esc(p.n)}, ${POS_N[r]}">${mag(r, Math.round(ovrIn(p, r)))}${odd ? '<span class="wr" title="Fora de posição">!</span>' : ''}<span class="nm">${esc(last(p.n))}</span><span class="en ${enCls(p.en)}"><i style="width:${p.en}%"></i></span></button>`;
+    const code = codes[k], r = SP[code].g, sp = c.spots[k], f = fitOf(p, code), at = Math.round(ovrAt(p, code));
+    h += `<button class="slot" style="left:${sp.x}%;top:${sp.y}%" data-a="slot" data-k="${k}" aria-label="${esc(p.n)}, ${SP[code].n}, nível ${at}"><span class="pc ${pcCls(p, code)}">${code}</span>${mag(r, at)}<span class="nm">${esc(last(p.n))}</span><span class="en ${enCls(p.en)}"><i style="width:${p.en}%"></i></span></button>`;
   });
   return `<div class="pitch v" id="board">${LINES_V}<i class="zone" style="top:${ZONE.ma}%"><em>Meio</em></i><i class="zone" style="top:${ZONE.dm}%"><em>Defesa</em></i><i class="zone first"><em>Ataque</em></i>${h}</div>`;
 }
@@ -2303,14 +2678,13 @@ VIEW.time = () => {
   let h = seg('time', [['esc', 'Escalação'], ['tat', 'Estilo'], ['tre', 'Treino']]);
   if (s === 'esc') {
     const pv = f ? preview(G.clubs[f.h], G.clubs[f.a]) : null, my = pv ? (f.home ? pv.h : pv.a) : null;
-    const rest = m.players.filter(p => !m.lineup.includes(p.id)), ok = rest.filter(avail).sort((a, b) => ovr(b) - ovr(a)), out = rest.filter(p => !avail(p));
+    const nRes = m.players.length - 11;
     const fam = famNow(m), custom = !PRESETS.includes(m.form);
     h += pitchV(m);
     h += `<div class="chips scroll">${PRESETS.map(k => `<button class="chip board ${m.form === k ? 'on' : ''}" data-a="form" data-v="${k}">${k}</button>`).join('')}${custom ? `<span class="chip on">${m.form}</span>` : ''}</div>`;
     h += `<div class="strip">${my ? `<div><b class="num">${Math.round(0.7 * my.def + 0.3 * my.gk)}</b><small>Defesa</small></div><div><b class="num">${Math.round(my.mid)}</b><small>Meio</small></div><div><b class="num">${Math.round(my.atk)}</b><small>Ataque</small></div>` : ''}<div><b class="num">${Math.round(fam)}%</b><small>Entrosamento</small></div><button class="btn sm yel" data-a="auto">Melhor time</button></div>`;
-    h += `<p class="hint">Arraste os ímãs para ajustar o desenho. Toque num ímã para trocar o jogador.${fam < m.fam ? ` Mudar de linha custa entrosamento: ${Math.round(m.fam)}% vira ${Math.round(fam)}% neste jogo.` : ''}</p>`;
-    h += `<div class="card flat"><div class="head pad"><h2><span>Reservas</span></h2><small>${m.players.length} no elenco</small></div>${ok.map(p => prow(p)).join('') || '<p class="muted pad">Sem reservas disponíveis.</p>'}</div>`;
-    if (out.length) h += `<div class="card flat"><div class="head pad"><h2><span>Fora de combate</span></h2></div>${out.map(p => prow(p, { off: 1 })).join('')}</div>`;
+    h += `<p class="hint">Toque num ímã para abrir o menu do jogador. Pressione e arraste para mudar a posição. Sigla amarela: jogador adaptado; vermelha: improvisado. Fora da posição de origem o nível cai.${fam < m.fam ? ` Mudar de linha custa entrosamento: ${Math.round(m.fam)}% vira ${Math.round(fam)}% neste jogo.` : ''}</p>`;
+    h += `<div class="card flat"><div class="head pad"><h2><span>Elenco</span></h2><small><span class="xi">XI</span> 11 titulares · ${nRes} reservas</small></div>${grouped(m.players, squadRow, ovr)}</div>`;
   } else if (s === 'tat') {
     const o = f && f.opp, fam = famNow(m);
     h += `<div class="card stack"><div class="head"><h2><span>Entrosamento</span></h2><b class="num">${Math.round(fam)}%</b></div><div class="meter ${fam < 45 ? 'low' : fam >= 80 ? 'good' : ''}"><i style="width:${fam}%"></i></div><p class="muted">Vale de −6% a +2% em todos os setores. Sobe a cada jogo e com treino tático. Cada jogador que muda de linha custa 8 pontos; trocar o estilo custa 22%.</p>${o ? `<p class="hand">O ${esc(o.name)} joga no ${o.form}, ${STYLES[o.style].n.toLowerCase()}.</p>` : ''}</div>`;
@@ -2325,22 +2699,36 @@ VIEW.time = () => {
 };
 
 // ---------- Mercado ----------
+const SORTS = { lvl: ['Nível', x => estOvr(x.p)], price: ['Preço', x => -x.p.ask], age: ['Idade', x => -x.p.age] };
+function buyRow(x) {
+  const p = x.p, c = x.c, open = windowOpen(), w = G.watch.includes(p.id);
+  return prow(p, { off: c && !open, sub: `${p.sp} · ${p.age} anos · ${c ? esc(c.name) : 'sem clube'}${w ? ' · ★' : ''}`, r: `<span class="right"><span class="val num">${money(p.ask)}</span><small class="muted" style="display:block">${c ? (G.market.includes(p.id) ? 'à venda' : 'pedida') : 'luvas'}</small></span>` });
+}
 VIEW.merc = () => {
   const m = me(), s = U.sub.merc, open = windowOpen();
-  let h = seg('merc', [['buy', 'Contratar'], ['sell', 'Meu elenco'], ['base', 'Base']]);
+  let h = seg('merc', [['buy', 'Contratar'], ['sell', 'Vender'], ['base', 'Base'], ['hist', 'Histórico']]);
   if (s === 'buy') {
-    h += `<div class="chips">${open ? '<span class="chip ok">Janela aberta</span>' : '<span class="chip warn">Janela fechada: só jogadores sem clube</span>'}<span class="chip board">Olheiros em campo: ${G.scoutQ.length}/${1 + G.fac.olh}</span><span class="chip board">Elenco ${m.players.length}/${SQUAD_MAX}</span></div>`;
-    h += `<div class="chips">${[[-1, 'Todos'], [0, 'GOL'], [1, 'DEF'], [2, 'MEI'], [3, 'ATA']].map(([v, l]) => `<button class="chip ${U.filt === v ? 'on' : ''}" data-a="filt" data-v="${v}">${l}</button>`).join('')}</div>`;
-    const list = [...G.free.map(p => [p, null]), ...G.market.map(id => [pl(id), clubOf(id)]).filter(x => x[0] && x[1] && x[1].id)].filter(x => U.filt < 0 || x[0].pos === U.filt).sort((a, b) => estOvr(b[0]) - estOvr(a[0]));
-    h += `<div class="card flat">${list.map(([p, c]) => { prepAsk(p); return prow(p, { off: c && !open, sub: `${POS[p.pos]} · ${p.age} anos · ${c ? esc(c.name) : 'sem clube'}`, r: `<span class="right"><span class="val num">${money(p.ask)}</span><small class="muted" style="display:block">${c ? 'pedida' : 'luvas'}</small></span>` }); }).join('') || '<p class="muted pad">Ninguém nessa posição agora.</p>'}</div>`;
-    h += '<p class="hint">Faixas como 58–66 são estimativas: mande um olheiro para ver o nível exato. Em Tabelas dá para abrir qualquer clube e propor por quem não está à venda.</p>';
+    h += `<div class="chips">${open ? '<span class="chip ok">Janela aberta</span>' : '<span class="chip warn">Janela fechada: só sem clube</span>'}<span class="chip board">Olheiros ${G.scoutQ.length}/${1 + G.fac.olh}</span><span class="chip board">Elenco ${m.players.length}/${SQUAD_MAX}</span></div>`;
+    h += `<div class="rowx"><div class="chips grow">${[[-1, 'Todos'], [0, 'GOL'], [1, 'DEF'], [2, 'MEI'], [3, 'ATA']].map(([v, l]) => `<button class="chip ${U.filt === v ? 'on' : ''}" data-a="filt" data-v="${v}">${l}</button>`).join('')}</div></div>`;
+    h += `<div class="seg">${Object.keys(SORTS).map(k => `<button class="${(U.sort || 'lvl') === k ? 'on' : ''}" data-a="sort" data-v="${k}">${SORTS[k][0]}</button>`).join('')}</div>`;
+    const watch = G.watch.map(id => pl(id)).filter(p => p && !isMine(p)).map(p => ({ p, c: clubOf(p.id) }));
+    watch.forEach(x => prepAsk(x.p));
+    if (watch.length) h += `<div class="card flat"><div class="head pad"><h2><span>Na mira</span></h2><small>${watch.length} observado${watch.length > 1 ? 's' : ''}</small></div>${watch.map(buyRow).join('')}</div>`;
+    const items = [...G.free.map(p => ({ p, c: null })), ...G.market.map(id => ({ p: pl(id), c: clubOf(id) })).filter(x => x.p && x.c && x.c.id)].filter(x => (U.filt < 0 || x.p.pos === U.filt) && !G.watch.includes(x.p.id));
+    items.forEach(x => prepAsk(x.p));
+    h += `<div class="card flat">${grouped(items, buyRow, SORTS[U.sort || 'lvl'][1]) || '<p class="muted pad">Ninguém nessa posição agora.</p>'}</div>`;
+    h += '<p class="hint">Faixas como 58–66 são estimativas: mande um olheiro para ver o nível exato. Marque ★ para acompanhar um jogador. Em Tabelas dá para abrir qualquer clube e propor por quem não está à venda.</p>';
   } else if (s === 'sell') {
-    const list = m.players.slice().sort((a, b) => valueOf(b) - valueOf(a));
-    h += `<div class="card"><div>${kv('Folha salarial', money(wageBill()) + ' por semana')}${kv('Contratos que acabam este ano', m.players.filter(p => p.ctr <= 1).length)}</div><p class="muted" style="margin-top:6px">Abra a ficha para renovar, pôr à venda ou dispensar.</p></div>`;
-    h += `<div class="card flat">${list.map(p => prow(p, { sub: `${POS[p.pos]} · ${p.age} anos · ${money(p.w)}/sem · até ${ctrEnd(p)}${p.ctr <= 1 ? ' <span class="tag yel">acaba</span>' : ''}`, r: `<span class="val num">${money(valueOf(p))}</span>` })).join('')}</div>`;
-  } else {
+    const listed = m.players.filter(p => p.list);
+    h += `<div class="card"><div>${kv('Folha salarial', money(wageBill()) + ' por semana')}${kv('Anunciados', listed.length ? `${listed.length} · ${money(listed.reduce((t, p) => t + p.list, 0))}` : 'nenhum')}${kv('Contratos que acabam este ano', m.players.filter(p => p.ctr <= 1).length)}</div><p class="muted" style="margin-top:6px">Toque num jogador para anunciar, vender na hora, renovar ou dispensar. Propostas chegam com a janela aberta; quanto mais perto do valor de mercado, mais rápido.</p></div>`;
+    h += `<div class="card flat">${grouped(m.players, p => { const st = starterInfo(p); return prow(p, { a: 'sell', cls: st ? 'st' : '', sub: `${p.sp} · ${p.age} anos · ${money(p.w)}/sem · até ${ctrEnd(p)}${p.ctr <= 1 ? ' <span class="tag yel">acaba</span>' : ''}`, r: `<span class="right">${st ? xiPill(st) : ''}<span class="val num">${money(valueOf(p))}</span></span>` }); }, valueOf)}</div>`;
+  } else if (s === 'base') {
     h += '<p class="hint">A peneira revela 3 garotos por temporada. Quem não for promovido vai embora no fim do ano.</p>';
-    h += G.youth.map(p => `<div class="card stack"><div class="rowx">${pmag(p)}<div class="grow"><b>${esc(p.n)}</b><div class="muted">${POS_N[p.pos]} · ${p.age} anos${p.tr ? ' · ' + TRAITS[p.tr].n : ''}</div></div><div class="right">${stars(p.pot)}<div class="muted">potencial ${p.pot}</div></div></div><div class="btns"><button class="btn sm" data-a="promote" data-id="${p.id}">Promover (R$ 1 mil/sem)</button><button class="btn ghost sm" data-a="player" data-id="${p.id}">Ficha</button><button class="btn ghost sm" data-a="dismiss" data-id="${p.id}">Dispensar</button></div></div>`).join('') || '<div class="card"><p class="hand">Ninguém na base agora. A próxima peneira é no começo da temporada.</p></div>';
+    h += G.youth.map(p => `<div class="card stack"><div class="rowx">${pmag(p)}<div class="grow"><b>${esc(p.n)}</b><div class="muted">${SP[p.sp].n} · ${p.age} anos${p.tr ? ' · ' + TRAITS[p.tr].n : ''}</div></div><div class="right">${stars(p.pot)}<div class="muted">potencial ${p.pot}</div></div></div><div class="btns"><button class="btn sm" data-a="promote" data-id="${p.id}">Promover (R$ 1 mil/sem)</button><button class="btn ghost sm" data-a="player" data-id="${p.id}">Ficha</button><button class="btn ghost sm" data-a="dismiss" data-id="${p.id}">Dispensar</button></div></div>`).join('') || '<div class="card"><p class="hand">Ninguém na base agora. A próxima peneira é no começo da temporada.</p></div>';
+  } else {
+    const yr = G.tx.filter(t => t.y === G.year), inn = yr.filter(t => t.t === 'in').reduce((a, t) => a + t.fee, 0), out = yr.filter(t => t.t === 'out').reduce((a, t) => a + t.fee, 0);
+    h += `<div class="card"><div class="head"><h2><span>${G.year}</span></h2></div>${kv('Gasto em contratações', money(inn), 'neg')}${kv('Arrecadado com vendas', money(out), 'pos')}${kv('Saldo', money(out - inn), out >= inn ? 'pos' : 'neg')}</div>`;
+    h += `<div class="card flat">${G.tx.map(t => `<div class="txr"><span class="txk ${t.t}">${t.t === 'in' ? 'Chegou' : t.t === 'out' ? 'Saiu' : 'Dispensa'}</span><div class="grow"><b>${esc(t.n)}</b><small>${t.sp} · ${t.o} · ${t.age} anos · ${t.t === 'in' ? 'de ' : t.t === 'out' ? 'para o ' : ''}${esc(t.club)} · ${t.y}</small></div><b class="num ${t.t === 'out' ? 'pos' : 'neg'}">${t.t === 'out' ? '+' : '−'}${money(t.fee)}</b></div>`).join('') || '<p class="muted pad">Nenhuma transferência ainda.</p>'}</div>`;
   }
   return h;
 };
@@ -2399,7 +2787,7 @@ VIEW.tab = () => {
     h += CUP_N.map((n, r) => `<div class="card flat"><div class="head pad"><h2><span>${n}</span></h2></div>${G.cup.rounds[r] ? G.cup.rounds[r].map(t => fxRow(t.h, t.a, t.w != null ? [t.gh, t.ga] : null, t.pso)).join('') : '<p class="muted pad">A definir.</p>'}</div>`).join('');
   } else if (s === 'art') {
     const top = G.clubs.filter(c => c.div === U.div).flatMap(c => c.players.map(p => [p, c])).filter(x => x[0].gl > 0).sort((a, b) => b[0].gl - a[0].gl || a[0].ap - b[0].ap).slice(0, 15);
-    h += divSeg + `<div class="card flat">${top.map(([p, c], i) => prow(p, { m: `<span class="mag rank">${i + 1}º</span>`, sub: `${esc(c.name)} · ${POS[p.pos]}`, r: `<span class="val num">${p.gl}</span>` })).join('') || '<p class="muted pad">Ainda sem gols na temporada.</p>'}</div>`;
+    h += divSeg + `<div class="card flat">${top.map(([p, c], i) => prow(p, { m: `<span class="mag rank">${i + 1}º</span>`, sub: `${esc(c.name)} · ${p.sp}`, r: `<span class="val num">${p.gl}</span>` })).join('') || '<p class="muted pad">Ainda sem gols na temporada.</p>'}</div>`;
   } else {
     h += `<div class="card flat">${myGames().map(g => { if (!g.f) return `<div class="fx"><span class="muted">${g.e.t === 'C' ? CUP_N[g.e.r] : ''}</span><b>—</b><span class="muted">${g.i < G.ci ? 'eliminado' : 'se avançar'}</span></div>`; return `<div style="${g.i === G.ci ? 'box-shadow:inset 5px 0 0 var(--magnet)' : ''}"><div class="muted" style="padding:8px 14px 0;font-size:11.5px;font-weight:800;letter-spacing:.06em;text-transform:uppercase">${g.e.t === 'L' ? 'Rodada ' + (g.e.r + 1) : 'Copa · ' + CUP_N[g.e.r]}</div>${fxRow(g.f[0], g.f[1], g.r ? [g.r[2], g.r[3]] : null, g.r && g.r[4]).replace('class="fx me"', 'class="fx" style="border:0;padding-top:2px"')}</div>`; }).join('')}</div>`;
   }
@@ -2412,14 +2800,15 @@ function closeSheet() {
   $('#sheet').classList.remove('on'); U.sheet = false; U.neg = null; U.subOut = null;
   const M = U.M;
   if (M && !M.done) {
-    if (M.pend) { const { S, o } = M.pend; if (!doSub(M, S, o, bestSub(S, o.role))) { o.out = true; o.t1 = M.min; } M.pend = null; if (!U.gl) drawDots(); }
+    if (M.pend) { const { S, o } = M.pend; if (!doSub(M, S, o, bestSub(S, o.code))) { o.out = true; o.t1 = M.min; } M.pend = null; if (!U.gl) drawDots(); }
     if (U.gl) GL.resume(); else if (!U.paused) schedule(350);
   }
 }
 function playerSheet(p) {
   const mine = isMine(p), youth = G.youth.includes(p), c = clubOf(p.id), k = knows(p), m = me();
   const keys = p.pos === 0 ? ['g'] : ['d', 'm', 'a'];
-  let h = `<div class="rowx" style="margin-bottom:12px;padding-right:36px">${pmag(p, 'big')}<div class="grow"><h2>${esc(p.n)}</h2><div class="muted">${POS_N[p.pos]} · ${p.age} anos · ${mine ? esc(m.name) : youth ? 'base' : c ? esc(c.name) : 'sem clube'}</div>${k ? `<div>${stars(p.pot)} <span class="muted">potencial ${p.pot}</span></div>` : ''}</div></div><div class="stack">`;
+  const st = mine ? starterInfo(p) : null;
+  let h = `<div class="rowx" style="margin-bottom:12px;padding-right:36px">${pmag(p, 'big')}<div class="grow"><h2>${esc(p.n)}</h2><div class="muted">${SP[p.sp].n} (${p.sp}) · ${p.age} anos · ${mine ? esc(m.name) : youth ? 'base' : c ? esc(c.name) : 'sem clube'}</div>${st ? `<div>${xiPill(st)} <span class="muted">titular${st.code !== p.sp ? `, jogando de ${SP[st.code].n.toLowerCase()} (${Math.round(ovrAt(p, st.code))})` : ''}</span></div>` : ''}${k ? `<div>${stars(p.pot)} <span class="muted">potencial ${p.pot}</span></div>` : ''}</div></div><div class="stack">`;
   if (k) h += `<div class="stack" style="gap:6px">${keys.map(x => `<div class="attr"><span>${ATTR_N[x]}</span>${bar(p[x])}<b>${p[x]}</b></div>`).join('')}</div>`;
   else h += `<p class="hand">Nível estimado entre ${ovrRange(p).join(' e ')}. Atributos e potencial só com relatório de olheiro.</p>`;
   if (p.tr && k) h += `<p><span class="tag yel">${TRAITS[p.tr].n}</span> <span class="muted">${TRAITS[p.tr].d}</span></p>`;
@@ -2427,31 +2816,64 @@ function playerSheet(p) {
   h += `<div>${kv('Temporada', `${plural(p.ap, 'jogo', 'jogos')} · ${plural(p.gl, 'gol', 'gols')} · ${p.as} assist.`)}${kv('Valor de mercado', k ? money(valueOf(p)) : 'a avaliar')}${mine || c ? kv('Salário', money(p.w) + ' por semana') : ''}${mine ? kv('Contrato', 'até o fim de ' + ctrEnd(p)) : ''}</div>`;
   if (p.inj) h += `<p class="hand red">Lesionado: volta em ${plural(p.inj, 'semana', 'semanas')}.</p>`;
   if (p.sus) h += '<p class="hand red">Suspenso no próximo jogo.</p>';
-  if (mine) h += `<div class="btns"><button class="btn" data-a="renewSheet" data-id="${p.id}">Renovar</button><button class="btn ghost" data-a="list" data-id="${p.id}">${p.list ? 'Tirar da lista de vendas' : 'Pôr à venda'}</button><button class="btn ghost" data-a="release" data-id="${p.id}">Dispensar</button></div>`;
+  if (k && p.pos > 0) h += `<div><label>Rende em outras posições</label><div class="fitrow">${SP_ORDER.filter(x => SP[x].g > 0).map(x => { const v = Math.round(ovrAt(p, x)), f = fitKind(p, x); return `<span class="${f}"><b>${x}</b>${v}</span>`; }).join('')}</div></div>`;
+  if (mine) h += `<div class="btns"><button class="btn" data-a="place" data-id="${p.id}">${st ? 'Mudar de posição' : 'Escalar'}</button><button class="btn ghost" data-a="sell" data-id="${p.id}">${p.list ? 'Venda' : 'Vender'}</button><button class="btn ghost" data-a="renewSheet" data-id="${p.id}">Renovar</button><button class="btn ghost" data-a="release" data-id="${p.id}">Dispensar</button></div>`;
   else if (youth) h += `<div class="btns"><button class="btn" data-a="promote" data-id="${p.id}">Promover ao elenco</button><button class="btn ghost" data-a="dismiss" data-id="${p.id}">Dispensar</button></div>`;
-  else h += `<div class="btns">${k ? '' : `<button class="btn ghost" data-a="scout" data-id="${p.id}" ${G.scoutQ.includes(p.id) ? 'disabled' : ''}>${G.scoutQ.includes(p.id) ? 'Olheiro a caminho' : 'Mandar olheiro'}</button>`}<button class="btn" data-a="neg" data-id="${p.id}">Negociar</button></div>`;
+  else h += `<div class="btns">${k ? '' : `<button class="btn ghost" data-a="scout" data-id="${p.id}" ${G.scoutQ.includes(p.id) ? 'disabled' : ''}>${G.scoutQ.includes(p.id) ? 'Olheiro a caminho' : 'Mandar olheiro'}</button>`}<button class="btn ghost" data-a="watch" data-id="${p.id}">${G.watch.includes(p.id) ? '★ Observando' : '☆ Observar'}</button><button class="btn" data-a="neg" data-id="${p.id}">Negociar</button></div>`;
   openSheet(h + '</div>');
 }
+const chTxt = v => `<span class="ch c${v}">${CH[v]}</span>`;
 function negSheet() {
   const N = U.neg, p = pl(N.pid), c = clubOf(p.id);
   prepAsk(p);
-  const fmin = round5(p.ask * 0.6), fmax = round5(p.ask * 1.3), wmin = Math.max(1, Math.floor(p.wask * 0.6)), wmax = Math.ceil(p.wask * 1.5) + 1;
-  openSheet(`<div class="rowx" style="margin-bottom:12px;padding-right:36px">${pmag(p, 'big')}<div class="grow"><h2>${esc(p.n)}</h2><div class="muted">${POS_N[p.pos]} · ${p.age} anos · ${c ? esc(c.name) : 'sem clube'}</div></div></div><div class="stack">
-    ${c ? `<div><label for="negFee">Oferta ao clube</label><div class="rowx"><input type="range" id="negFee" min="${fmin}" max="${fmax}" step="5" value="${N.fee}"><b class="num" id="negFeeV" style="min-width:96px;text-align:right">${money(N.fee)}</b></div><div class="muted">Pedida: ${money(p.ask)}. Eles podem aceitar um pouco menos.</div></div>` : `<div>${kv('Luvas na assinatura', money(p.ask))}</div>`}
-    <div><label for="negWage">Salário por semana</label><div class="rowx"><input type="range" id="negWage" min="${wmin}" max="${wmax}" step="1" value="${N.wage}"><b class="num" id="negWageV" style="min-width:96px;text-align:right">${money(N.wage)}</b></div><div class="muted">Ele pede ${money(p.wask)}. Sua folha hoje: ${money(wageBill())}.</div></div>
+  const fmin = round5(p.ask * 0.6), fmax = round5(p.ask * 1.3), wmin = Math.max(1, Math.floor(p.wask * 0.6)), wmax = Math.ceil(p.wask * 1.5) + 1, ch = bidChance(p, N.fee, N.wage), fee = c ? N.fee : p.ask;
+  openSheet(`<div class="rowx" style="margin-bottom:12px;padding-right:36px">${pmag(p, 'big')}<div class="grow"><h2>${esc(p.n)}</h2><div class="muted">${SP[p.sp].n} · ${p.age} anos · ${c ? esc(c.name) : 'sem clube'}</div></div></div><div class="stack">
+    <div>${kv('Valor de mercado', knows(p) ? money(valueOf(p)) : 'a avaliar')}${c ? kv(G.market.includes(p.id) ? 'Pedida (está à venda)' : 'Pedida (não está à venda)', money(p.ask)) : ''}</div>
+    ${c ? `<div><label for="negFee">Oferta ao clube <span id="chFee">${chTxt(ch.fee)}</span></label><div class="rowx"><input type="range" id="negFee" min="${fmin}" max="${fmax}" step="5" value="${N.fee}"><b class="num" id="negFeeV" style="min-width:96px;text-align:right">${money(N.fee)}</b></div></div>` : `<div>${kv('Luvas na assinatura', money(p.ask))}</div>`}
+    <div><label for="negWage">Salário por semana <span id="chWage">${chTxt(ch.wage)}</span></label><div class="rowx"><input type="range" id="negWage" min="${wmin}" max="${wmax}" step="1" value="${N.wage}"><b class="num" id="negWageV" style="min-width:96px;text-align:right">${money(N.wage)}</b></div><div class="muted">Ele pede ${money(p.wask)}.</div></div>
     <div><label>Contrato</label><div class="seg inpaper">${[1, 2, 3, 4].map(y => `<button class="${N.yrs === y ? 'on' : ''}" data-a="negY" data-v="${y}">${plural(y, 'ano', 'anos')}</button>`).join('')}</div></div>
+    <div id="negSum">${negSum(fee, N.wage)}</div>
     ${N.msg ? `<p class="hand ${N.ok ? 'ok' : 'red'}">${esc(N.msg)}</p>` : ''}
-    <button class="btn wide" data-a="negSend">Enviar proposta</button><div class="muted">Em caixa: ${money(G.money)}.</div></div>`);
+    <button class="btn wide" data-a="negSend">Enviar proposta</button></div>`);
+}
+const negSum = (fee, wage) => kv('Caixa depois', money(G.money - fee), G.money - fee < 0 ? 'neg' : '') + kv('Folha depois', money(wageBill() + wage) + ' por semana');
+function sellSheet(p) {
+  const v = valueOf(p), price = U.ask != null ? U.ask : p.list || round5(v * 1.1), open = windowOpen(), q = quickPrice(p), odds = clamp(1.3 - 0.75 * (price / v), 0.04, 0.85), st = starterInfo(p);
+  openSheet(`<div class="rowx" style="margin-bottom:12px;padding-right:36px">${pmag(p, 'big')}<div class="grow"><h2>${esc(p.n)}</h2><div class="muted">${SP[p.sp].n} · ${p.age} anos${st ? ' · titular' : ''}</div></div></div><div class="stack">
+    <div>${kv('Valor de mercado', money(v))}${kv('Salário', money(p.w) + ' por semana')}${kv('Contrato', 'até o fim de ' + ctrEnd(p))}</div>
+    <div><label for="askP">Preço pedido</label><div class="rowx"><input type="range" id="askP" min="${round5(v * 0.5)}" max="${round5(v * 2)}" step="5" value="${price}"><b class="num" id="askV" style="min-width:96px;text-align:right">${money(price)}</b></div>
+    <div class="muted" id="askOdds">${oddsTxt(odds, price / v)}</div></div>
+    <div class="btns"><button class="btn" data-a="listOk" data-id="${p.id}">${p.list ? 'Atualizar anúncio' : 'Anunciar'}</button>${p.list ? `<button class="btn ghost" data-a="unlist" data-id="${p.id}">Tirar do mercado</button>` : ''}</div>
+    <div class="card" style="box-shadow:none;background:var(--raise)"><b>Venda rápida</b><p class="muted" style="margin:4px 0 10px">Um clube interessado paga ${money(q)} na hora (72% do valor).${open ? '' : ' Só com a janela aberta.'}</p><button class="btn ghost sm" data-a="quick" data-id="${p.id}" ${open ? '' : 'disabled'}>Vender agora por ${money(q)}</button></div>
+    <div class="btns"><button class="btn ghost sm" data-a="player" data-id="${p.id}">Ver ficha</button><button class="btn ghost sm" data-a="release" data-id="${p.id}">Dispensar (${money(p.w * 6)})</button></div></div>`);
+}
+const oddsTxt = (o, r) => `${Math.round(r * 100)}% do valor · chance de proposta por semana: <b>${o >= 0.6 ? 'alta' : o >= 0.3 ? 'média' : 'baixa'}</b>`;
+// menu do jogador no quadro
+function slotMenu(k) {
+  const m = me(), code = codesOf(m)[k], p = pl(m.lineup[k]); if (!p) return pickSheet(k);
+  const at = Math.round(ovrAt(p, code)), d = at - ovr(p), g = SP[code].g;
+  const alt = m.players.filter(x => x !== p && avail(x)).sort((a, b) => ovrAt(b, code) - ovrAt(a, code)).slice(0, 3);
+  openSheet(`<div class="rowx" style="margin-bottom:12px;padding-right:36px">${mag(g, at, 'big')}<div class="grow"><h2>${esc(p.n)}</h2><div class="muted">${SP[code].n} no time · natural: ${p.sp}</div><div class="${d < 0 ? 'hand red' : 'hand ok'}" style="font-size:19px">${d < 0 ? `Fora de posição: ${at} em vez de ${ovr(p)} (${d})` : 'Na posição de origem'}</div></div></div><div class="stack">
+    <div class="stat3"><div><b class="num">${Math.round(p.en)}</b><small>Energia</small></div><div><b class="num">${Math.round(p.mo)}</b><small>Moral</small></div><div><b class="num">${p.h.length ? formOf(p).toFixed(1).replace('.', ',') : '—'}</b><small>Nota média</small></div></div>
+    <h3>Melhores opções para ${code}</h3><div class="card flat" style="box-shadow:none;background:var(--raise)">${alt.map(x => { const j = m.lineup.indexOf(x.id); return prow(x, { a: 'put', x: `data-k="${k}"`, m: mag(g, Math.round(ovrAt(x, code))), sub: `${x.sp} · ${j >= 0 ? 'titular (troca de lugar)' : 'reserva'}` }); }).join('')}</div>
+    <div class="btns"><button class="btn" data-a="pick" data-k="${k}">Ver todos</button><button class="btn ghost" data-a="player" data-id="${p.id}">Ficha completa</button></div>
+    <p class="muted">Para mover o jogador no campo, pressione o ímã e arraste.</p></div>`);
+}
+// escolher em que lugar do time o jogador entra
+function placeSheet(p) {
+  const m = me(), codes = codesOf(m);
+  openSheet(`<h2 style="padding-right:36px">Escalar ${esc(last(p.n))}</h2><p class="muted" style="margin:4px 0 10px">O número da esquerda é o nível dele em cada posição; à direita, quem joga lá hoje.</p><div class="card flat" style="box-shadow:none;background:var(--raise)">${m.lineup.map((id, k) => { const q = pl(id), code = codes[k], at = Math.round(ovrAt(p, code)), cur = q ? Math.round(ovrAt(q, code)) : 0; return `<button class="prow" data-a="put" data-k="${k}" data-id="${p.id}" ${q === p ? 'disabled' : ''}>${mag(SP[code].g, at)}<span class="grow"><b>${code} · ${SP[code].n}</b><small>${q === p ? 'posição atual' : q ? `hoje: ${esc(q.n)} (${cur})` : 'vaga'}</small></span><span class="tag ${at > cur ? 'ok' : at < cur ? 'red' : ''}">${at > cur ? '+' : ''}${at - cur}</span></button>`; }).join('')}</div>`);
 }
 function clubSheet(c) {
-  const list = c.players.slice().sort((a, b) => estOvr(b) - estOvr(a));
-  openSheet(`<div class="rowx" style="margin-bottom:10px;padding-right:36px">${crest(c, 52)}<div class="grow"><h2>${esc(c.name)}</h2><div class="muted">${DIV_N[c.div]} · ${posOf(c)}º · ${c.form} · ${STYLES[c.style].n}</div><div>${formDots(c)}</div></div></div><div class="card flat" style="box-shadow:none;background:var(--raise)">${list.map(p => prow(p, { r: c.id ? '' : undefined })).join('')}</div>`);
+  const xi = new Set(c.lineup);
+  openSheet(`<div class="rowx" style="margin-bottom:10px;padding-right:36px">${crest(c, 52)}<div class="grow"><h2>${esc(c.name)}</h2><div class="muted">${DIV_N[c.div]} · ${posOf(c)}º · ${c.form} · ${STYLES[c.style].n}</div><div>${formDots(c)}</div></div></div><div class="card flat" style="box-shadow:none;background:var(--raise)">${grouped(c.players, p => (c.id === 0 ? squadRow(p) : prow(p, { cls: xi.has(p.id) ? 'st' : '', r: xi.has(p.id) ? '<span class="xi">XI</span>' : '' })), estOvr)}</div>`);
 }
 function pickSheet(k) {
-  const m = me(), role = rolesOf(m)[k], cur = pl(m.lineup[k]);
-  const sc = p => ovrIn(p, role) * (0.8 + 0.2 * p.en / 100);
-  const list = m.players.filter(p => p !== cur).sort((a, b) => avail(b) - avail(a) || sc(b) - sc(a));
-  openSheet(`<h2 style="padding-right:36px">${POS_N[role]}</h2><p class="muted" style="margin:4px 0 10px">O número mostra o nível do jogador nesta função.</p>${cur ? `<div class="card flat" style="box-shadow:none;background:var(--hl);margin-bottom:10px">${prow(cur, { m: mag(role, Math.round(ovrIn(cur, role))), sub: `Titular agora · natural: ${POS[cur.pos]} · toque para ver a ficha` })}</div>` : ''}<div class="card flat" style="box-shadow:none;background:var(--raise)">${list.map(p => { const j = m.lineup.indexOf(p.id); return prow(p, { a: avail(p) ? 'put' : 'none', x: `data-k="${k}"`, off: !avail(p), m: mag(role, Math.round(ovrIn(p, role))), sub: `${POS[p.pos]}${p.pos !== role && p.tr !== 'coringa' ? ' (improvisado)' : ''} · ${p.age} anos · ${j >= 0 ? 'titular, troca de lugar' : 'reserva'}` }); }).join('')}</div>`);
+  const m = me(), code = codesOf(m)[k], g = SP[code].g, cur = pl(m.lineup[k]);
+  const sc = p => ovrAt(p, code) * (0.8 + 0.2 * p.en / 100);
+  const list = m.players.filter(p => p !== cur);
+  const row = p => { const j = m.lineup.indexOf(p.id), f = fitKind(p, code); return prow(p, { a: avail(p) ? 'put' : 'none', x: `data-k="${k}"`, off: !avail(p), cls: j >= 0 ? 'st' : '', m: mag(g, Math.round(ovrAt(p, code))), sub: `${p.sp}${f !== 'same' ? ` <span class="tag ${f === 'near' ? 'yel' : 'red'}">${f === 'near' ? 'adaptado' : 'improvisado'}</span>` : ''} · ${j >= 0 ? 'titular, troca de lugar' : 'reserva'}` }); };
+  openSheet(`<h2 style="padding-right:36px">${code} · ${SP[code].n}</h2><p class="muted" style="margin:4px 0 10px">O número mostra o nível de cada um nesta posição.</p>${cur ? `<div class="card flat" style="box-shadow:none;background:var(--hl);margin-bottom:10px">${prow(cur, { m: mag(g, Math.round(ovrAt(cur, code))), sub: `Titular agora · natural: ${cur.sp} · toque para ver a ficha` })}</div>` : ''}<div class="card flat" style="box-shadow:none;background:var(--raise)">${grouped(list, row, sc, g)}</div>`);
 }
 function confirmSheet(title, text, act, v, label, cls = '') { openSheet(`<h2 style="padding-right:36px">${title}</h2><p style="margin:10px 0 14px">${text}</p><div class="btns"><button class="btn ${cls}" data-a="${act}" data-v="${v}">${label}</button><button class="btn ghost" data-a="close">Cancelar</button></div>`); }
 
@@ -2548,16 +2970,16 @@ function boardSheet() {
   const M = U.M, S = U.my, act = S.on.map((o, i) => [o, i]).filter(x => !x[0].out), left = 5 - S.subs;
   let h = `<h2 style="padding-right:36px"><span>Prancheta</span> · ${M.min}'</h2><div class="stack" style="margin-top:10px"><div><label>Postura</label><div class="seg inpaper">${Object.keys(MENT).map(k => `<button class="${S.ment === k ? 'on' : ''}" data-a="mMent" data-v="${k}">${MENT[k].n}</button>`).join('')}</div><p class="muted" style="margin-top:4px">${MENT[S.ment].d}.</p></div>`;
   if (U.subOut != null) {
-    const o = S.on[U.subOut], b = benchOf(S).sort((x, y) => ovrIn(y, o.role) - ovrIn(x, o.role));
-    h += `<h3>Quem entra no lugar de ${esc(last(o.p.n))}?</h3><div class="card flat" style="box-shadow:none;background:var(--raise)">${b.map(p => prow(p, { a: 'mIn', m: mag(o.role, Math.round(ovrIn(p, o.role))), sub: `${POS[p.pos]} · ${p.age} anos` })).join('') || '<p class="muted pad">Banco vazio.</p>'}</div><button class="btn ghost" data-a="mOut" data-i="-1">Voltar</button>`;
+    const o = S.on[U.subOut], b = benchOf(S).sort((x, y) => ovrAt(y, o.code) - ovrAt(x, o.code));
+    h += `<h3>Quem entra no lugar de ${esc(last(o.p.n))}?</h3><div class="card flat" style="box-shadow:none;background:var(--raise)">${b.map(p => prow(p, { a: 'mIn', m: mag(o.role, Math.round(ovrAt(p, o.code))), sub: `${p.sp} · ${p.age} anos` })).join('') || '<p class="muted pad">Banco vazio.</p>'}</div><button class="btn ghost" data-a="mOut" data-i="-1">Voltar</button>`;
   } else {
-    h += `<h3>Substituições: restam ${left}</h3><div class="card flat" style="box-shadow:none;background:var(--raise)">${act.map(([o, i]) => prow(o.p, { a: left ? 'mOut' : 'none', x: `data-i="${i}"`, m: mag(o.role, Math.round(ovrIn(o.p, o.role))), sub: `${POS[o.role]}${o.yc ? ' · 🟨' : ''}${o.g ? ' · ⚽'.repeat(1) + (o.g > 1 ? '×' + o.g : '') : ''}`, r: `<span class="mini"><span>${Math.round(o.en)}</span>${bar(o.en, enCls(o.en))}</span>` })).join('')}</div><p class="muted">Toque em quem sai. Jogador cansado rende menos e machuca mais.</p>`;
+    h += `<h3>Substituições: restam ${left}</h3><div class="card flat" style="box-shadow:none;background:var(--raise)">${act.map(([o, i]) => prow(o.p, { a: left ? 'mOut' : 'none', x: `data-i="${i}"`, m: mag(o.role, Math.round(ovrAt(o.p, o.code))), sub: `${o.code}${o.yc ? ' · 🟨' : ''}${o.g ? ' · ⚽'.repeat(1) + (o.g > 1 ? '×' + o.g : '') : ''}`, r: `<span class="mini"><span>${Math.round(o.en)}</span>${bar(o.en, enCls(o.en))}</span>` })).join('')}</div><p class="muted">Toque em quem sai. Jogador cansado rende menos e machuca mais.</p>`;
   }
   openSheet(h + '<button class="btn wide" data-a="close">Voltar ao jogo</button></div>');
 }
 function injSheet() {
-  const M = U.M, { S, o } = M.pend, b = benchOf(S).sort((x, y) => ovrIn(y, o.role) - ovrIn(x, o.role));
-  openSheet(`<h2 style="padding-right:36px"><span>Lesão</span></h2><p class="hand red" style="margin:8px 0">${esc(o.p.n)} não volta. Fora por ${plural(o.p.inj, 'semana', 'semanas')}.</p><h3>Quem entra?</h3><div class="card flat" style="box-shadow:none;background:var(--raise);margin-top:8px">${b.map(p => prow(p, { a: 'injIn', m: mag(o.role, Math.round(ovrIn(p, o.role))), sub: `${POS[p.pos]} · ${p.age} anos` })).join('')}</div>`);
+  const M = U.M, { S, o } = M.pend, b = benchOf(S).sort((x, y) => ovrAt(y, o.code) - ovrAt(x, o.code));
+  openSheet(`<h2 style="padding-right:36px"><span>Lesão</span></h2><p class="hand red" style="margin:8px 0">${esc(o.p.n)} não volta. Fora por ${plural(o.p.inj, 'semana', 'semanas')}.</p><h3>Quem entra?</h3><div class="card flat" style="box-shadow:none;background:var(--raise);margin-top:8px">${b.map(p => prow(p, { a: 'injIn', m: mag(o.role, Math.round(ovrAt(p, o.code))), sub: `${p.sp} · ${p.age} anos` })).join('')}</div>`);
 }
 
 // ---------- pós-jogo, temporada, demissão ----------
@@ -2568,7 +2990,7 @@ function showPost() {
   const gm = mh ? r.gh : r.ga, go = mh ? r.ga : r.gh, ps = mh ? L.st.pos : 100 - L.st.pos, ix = mh ? 0 : 1;
   const pen = r.pso ? ` <small style="font-size:18px">(${mh ? r.pso[0] : r.pso[1]}–${mh ? r.pso[1] : r.pso[0]} pên.)</small>` : '';
   const goals = L.goals.map(g => `<div class="kv"><span>${g.m}' ${esc(g.n)}</span><b>${(g.s === 'h') === mh ? esc(m.abbr) : esc(o.abbr)}</b></div>`).join('');
-  const rows = L.mine.slice().sort((a, b) => b.note - a.note).map(x => `<div class="prow">${mag(x.pos, x.note.toFixed(1).replace('.', ','), 'rg')}<span class="grow"><b>${esc(x.n)}</b><small>${POS[x.pos]}${x.g ? ' · ' + plural(x.g, 'gol', 'gols') : ''}${x.a ? ' · ' + x.a + ' assist.' : ''}${x.yc ? ' · amarelo' : ''}${x.red ? ' · expulso' : ''}${x.hurt ? ' · lesionado' : ''}</small></span></div>`).join('');
+  const rows = L.mine.slice().sort((a, b) => b.note - a.note).map(x => `<div class="prow">${mag(x.pos, x.note.toFixed(1).replace('.', ','), 'rg')}<span class="grow"><b>${esc(x.n)}</b><small>${x.c || POS[x.pos]}${x.g ? ' · ' + plural(x.g, 'gol', 'gols') : ''}${x.a ? ' · ' + x.a + ' assist.' : ''}${x.yc ? ' · amarelo' : ''}${x.red ? ' · expulso' : ''}${x.hurt ? ' · lesionado' : ''}</small></span></div>`).join('');
   const others = L.e.t === 'L' ? G.lg[m.div].res[L.e.r].map(x => fxRow(x[0], x[1], [x[2], x[3]])).join('') : G.cup.rounds[L.e.r].map(t => fxRow(t.h, t.a, [t.gh, t.ga], t.pso)).join('');
   showOv(`<div class="card stack" style="text-align:center"><div class="muted">${entryLabel(L.e)}</div><div class="vs"><div class="t">${crest(m, 52)}<b>${esc(m.name)}</b></div><div class="big num">${gm}–${go}${pen}</div><div class="t">${crest(o, 52)}<b>${esc(o.name)}</b></div></div><div><span class="stamp ${L.out > 0 ? 'V' : L.out < 0 ? 'D' : ''}">${L.out > 0 ? 'Vitória' : L.out < 0 ? 'Derrota' : 'Empate'}</span></div></div>
     ${goals ? `<div class="card"><div class="head"><h2><span>Gols</span></h2></div>${goals}</div>` : ''}
@@ -2584,7 +3006,7 @@ function showReview() {
       ${v.promoted ? '<p class="hand ok">Subimos para a Série A!</p>' : ''}${v.relegated ? '<p class="hand red">Rebaixados para a Série B.</p>' : ''}${v.trophies.map(t => `<p class="hand ok">★ Campeão: ${esc(t)}</p>`).join('')}</div>
     <div class="card">${kv('Meta da diretoria', `${v.obj.t} (até ${v.obj.pos}º)`)}${kv('Confiança', (v.dc >= 0 ? '+' : '−') + Math.abs(v.dc), v.dc >= 0 ? 'pos' : 'neg')}${kv('Premiação pela posição', '+' + money(v.prize), 'pos')}${kv('Balanço do ano', money(v.fin.in - v.fin.out), v.fin.in >= v.fin.out ? 'pos' : 'neg')}${kv('Seu artilheiro', esc(v.best))}</div>
     <div class="card">${kv('Campeão da Série A', esc(v.champA))}${kv('Campeão da Copa', esc(v.cup))}${kv('Artilheiro da divisão', esc(v.top))}${kv('Sobem', v.up.map(esc).join(', '))}${kv('Caem', v.down.map(esc).join(', '))}</div>
-    <div class="card flat"><div class="head pad"><h2><span>Contratos no fim</span></h2><small>${exp.length ? 'quem não renovar vai embora' : ''}</small></div>${exp.map(p => prow(p, { a: 'none', sub: `${POS[p.pos]} · ${p.age} anos · pede ${money(renewAsk(p))}/sem`, r: `<span class="btn sm" data-a="rvRenew" data-id="${p.id}" role="button" tabindex="0">Renovar 2 anos</span>` })).join('') || '<p class="muted pad">Ninguém em fim de contrato.</p>'}</div>
+    <div class="card flat"><div class="head pad"><h2><span>Contratos no fim</span></h2><small>${exp.length ? 'quem não renovar vai embora' : ''}</small></div>${exp.map(p => prow(p, { a: 'none', sub: `${p.sp} · ${p.age} anos · pede ${money(renewAsk(p))}/sem`, r: `<span class="btn sm" data-a="rvRenew" data-id="${p.id}" role="button" tabindex="0">Renovar 2 anos</span>` })).join('') || '<p class="muted pad">Ninguém em fim de contrato.</p>'}</div>
     <p class="hint">Na virada do ano todo mundo fica um ano mais velho, veteranos podem se aposentar e a base revela novos garotos.</p>`,
   `<button class="btn cta" data-a="season">Começar ${v.year + 1}</button>`);
 }
@@ -2624,8 +3046,10 @@ const ACT = {
   res(d) { const it = G.inbox.find(i => i.id === +d.id); resolve(it, +d.i); done(it.done); },
   play() { startMatch(); },
   // time
-  slot(d) { if (Date.now() - (U.dragT || 0) < 400) return; pickSheet(+d.k); },
-  put(d) { const m = me(), k = +d.k, id = +d.id, j = m.lineup.indexOf(id); if (j >= 0) m.lineup[j] = m.lineup[k]; m.lineup[k] = id; closeSheet(); done(); },
+  slot(d) { if (Date.now() - (U.dragT || 0) < 400) return; slotMenu(+d.k); },
+  pick(d) { pickSheet(+d.k); },
+  place(d) { placeSheet(pl(+d.id)); },
+  put(d) { const m = me(), k = +d.k, id = +d.id, j = m.lineup.indexOf(id); if (j === k) return; if (j >= 0) m.lineup[j] = m.lineup[k]; m.lineup[k] = id; closeSheet(); const p = pl(id), code = codesOf(m)[k]; done(`${last(p.n)} de ${code} (${Math.round(ovrAt(p, code))}).`); },
   auto() { autoLineup(me()); done('Melhor time escalado.'); },
   form(d) { setFormation(me(), d.v); done(); },
   more() { U.more = !U.more; render(); },
@@ -2643,7 +3067,13 @@ const ACT = {
   neg(d) { const p = pl(+d.id); prepAsk(p); U.neg = { pid: p.id, fee: clubOf(p.id) ? round5(p.ask * 0.9) : p.ask, wage: p.wask, yrs: 2, msg: '' }; negSheet(); },
   negY(d) { U.neg.yrs = +d.v; negSheet(); },
   negSend() { const N = U.neg, p = pl(N.pid), r = bid(p, N.fee, N.wage, N.yrs); if (r.ok) { closeSheet(); return done(r.msg); } if (r.counter) { N.fee = r.counter.fee; N.wage = r.counter.wage; } N.msg = r.msg; save(); negSheet(); },
-  list(d) { const p = pl(+d.id); p.list = !p.list; save(); render(); playerSheet(p); toast(p.list ? 'Na lista de vendas.' : 'Fora da lista de vendas.'); },
+  sell(d) { U.ask = null; sellSheet(pl(+d.id)); },
+  listOk(d) { const p = pl(+d.id); listFor(p, U.ask != null ? U.ask : p.list || valueOf(p) * 1.1); U.ask = null; closeSheet(); done(`${p.n} anunciado por ${money(p.list)}.`); },
+  unlist(d) { const p = pl(+d.id); listFor(p, 0); U.ask = null; closeSheet(); done(`${p.n} saiu do mercado.`); },
+  quick(d) { const p = pl(+d.id); confirmSheet(`Vender ${esc(last(p.n))} agora?`, `Ele sai do clube por ${money(quickPrice(p))} (valor de mercado: ${money(valueOf(p))}).`, 'quickOk', p.id, 'Vender agora', 'red'); },
+  quickOk(d) { const r = quickSell(pl(+d.v)); closeSheet(); done(r.msg); },
+  watch(d) { const id = +d.id, p = pl(id); G.watch = G.watch.includes(id) ? G.watch.filter(x => x !== id) : [...G.watch, id]; save(); render(); playerSheet(p); },
+  sort(d) { U.sort = d.v; render(); },
   release(d) { const p = pl(+d.id); confirmSheet('Dispensar ' + esc(p.n) + '?', `A rescisão custa ${money(p.w * 6)}. Ele fica sem clube.`, 'releaseOk', p.id, 'Dispensar', 'red'); },
   releaseOk(d) { const p = pl(+d.v), e = release(p); closeSheet(); done(e || p.n + ' foi dispensado.'); },
   renewSheet(d) { const p = pl(+d.id), w = renewAsk(p); openSheet(`<h2 style="padding-right:36px">Renovar com ${esc(last(p.n))}</h2><div class="stack" style="margin-top:10px"><div>${kv('Salário atual', money(p.w) + ' por semana')}${kv('Ele pede', money(w) + ' por semana')}${kv('Contrato atual', 'até ' + ctrEnd(p))}</div><div class="btns">${[1, 2, 3].map(y => `<button class="btn" data-a="renew" data-id="${p.id}" data-y="${y}">Até ${G.year + y}</button>`).join('')}</div></div>`); },
@@ -2686,30 +3116,41 @@ function enter() {
   if (G.over) showOver(); else if (G.review) showReview(); else if (G.stage === 'post' && G.last) showPost(); else hideOv();
 }
 document.addEventListener('click', e => { const b = e.target.closest('[data-a]'); if (!b || b.disabled) return; const fn = ACT[b.dataset.a]; if (fn) { e.preventDefault(); fn(b.dataset, b); } });
+// ímãs: toque abre o menu; pressionar ~0,25 s "descola" o ímã e aí ele pode ser arrastado
 let DR = null;
+function armMagnet() { if (!DR) return; DR.armed = true; DR.el.classList.add('lift'); $('#board').classList.add('dragging'); try { if (navigator.vibrate) navigator.vibrate(12); } catch (x) { /* sem vibração */ } }
 document.addEventListener('pointerdown', e => {
   SFX.init();
   const el = e.target.closest('#board .slot'); if (!el || !G) return;
-  DR = { el, k: +el.dataset.k, x0: e.clientX, y0: e.clientY, moved: false, bd: $('#board').getBoundingClientRect(), id: e.pointerId };
+  DR = { el, k: +el.dataset.k, x0: e.clientX, y0: e.clientY, moved: false, armed: false, bd: $('#board').getBoundingClientRect(), id: e.pointerId, t: setTimeout(armMagnet, 240) };
   try { el.setPointerCapture(e.pointerId); } catch (x) { /* sem captura */ }
 }, true);
 document.addEventListener('pointermove', e => {
   if (!DR || e.pointerId !== DR.id) return;
-  if (!DR.moved && Math.hypot(e.clientX - DR.x0, e.clientY - DR.y0) < 7) return;
+  if (!DR.armed) { if (Math.hypot(e.clientX - DR.x0, e.clientY - DR.y0) > 9) { clearTimeout(DR.t); DR.cancel = true; } return; }
   DR.moved = true; e.preventDefault();
   const m = me(), p = pl(m.lineup[DR.k]);
   moveSpot(m, DR.k, (e.clientX - DR.bd.left) / DR.bd.width * 100, (e.clientY - DR.bd.top) / DR.bd.height * 100);
-  const sp = m.spots[DR.k], r = rolesOf(m)[DR.k], mg = DR.el.querySelector('.mag');
-  DR.el.style.left = sp.x + '%'; DR.el.style.top = sp.y + '%'; DR.el.classList.add('drag'); $('#board').classList.add('dragging');
-  mg.className = 'mag p' + r; mg.textContent = Math.round(ovrIn(p, r));
+  const sp = m.spots[DR.k], code = codesOf(m)[DR.k], g = SP[code].g, mg = DR.el.querySelector('.mag'), pc = DR.el.querySelector('.pc');
+  DR.el.style.left = sp.x + '%'; DR.el.style.top = sp.y + '%'; DR.el.classList.add('drag');
+  mg.className = 'mag p' + g; mg.textContent = Math.round(ovrAt(p, code));
+  pc.textContent = code; pc.className = 'pc ' + pcCls(p, code);
 });
-function dropMagnet(e) { if (!DR || e.pointerId !== DR.id) return; const d = DR; DR = null; if (d.moved) { U.dragT = Date.now(); save(); render(); } }
+function dropMagnet(e) {
+  if (!DR || e.pointerId !== DR.id) return;
+  const d = DR; DR = null; clearTimeout(d.t);
+  if (d.armed || d.cancel) U.dragT = Date.now();
+  d.el.classList.remove('lift'); const b = $('#board'); if (b) b.classList.remove('dragging');
+  if (d.moved) { save(); render(); }
+}
 document.addEventListener('pointerup', dropMagnet);
 document.addEventListener('pointercancel', dropMagnet);
 document.addEventListener('input', e => {
   const t = e.target;
   if (t.id === 'negFee') { U.neg.fee = +t.value; $('#negFeeV').textContent = money(U.neg.fee); }
   if (t.id === 'negWage') { U.neg.wage = +t.value; $('#negWageV').textContent = money(U.neg.wage); }
+  if (t.id === 'negFee' || t.id === 'negWage') { const p = pl(U.neg.pid), ch = bidChance(p, U.neg.fee, U.neg.wage); if ($('#chFee')) $('#chFee').innerHTML = chTxt(ch.fee); $('#chWage').innerHTML = chTxt(ch.wage); $('#negSum').innerHTML = negSum(clubOf(p.id) ? U.neg.fee : p.ask, U.neg.wage); }
+  if (t.id === 'askP') { U.ask = +t.value; const v = valueOf(pl(+$('[data-a="listOk"]').dataset.id)); $('#askV').textContent = money(U.ask); $('#askOdds').innerHTML = oddsTxt(clamp(1.3 - 0.75 * (U.ask / v), 0.04, 0.85), U.ask / v); }
   if (t.id === 'crName') { U.cr.name = t.value; if (U.cr.auto) { U.cr.abbr = abbrOf(t.value); $('#crAbbr').value = U.cr.abbr; } }
   if (t.id === 'crAbbr') { U.cr.abbr = t.value.toUpperCase(); U.cr.auto = false; }
 });

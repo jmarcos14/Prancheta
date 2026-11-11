@@ -114,7 +114,7 @@ const GL = (() => {
   let THREE, ready = false, failed = false, renderer, scene, camera, canvas, fx, dust, DUSTC, confMesh, dummy, FG, ballV, lastT = 0, T0 = 0, confI = 0, ringI = 0;
   const TX = {}, goals = {}, conf = [], rings = [], MATC = {}, floats = [], FIELD = { cur: null, boards: [], decal: null };
   const cam = { cD: 260, cx: 0, cz: 0, ctilt: 0 };
-  const V = { on: false, M: null, my: null, op: null, acts: new Map(), ball: null, q: [], wait: 0, block: false, ended: false, scene: false, poss: null, zoneY: null, minAcc: 0, passT: 1, speed: 2, camNear: true, shake: 0, seen: 0, shown: [0, 0], half: false, mood: 0, home: true };
+  const V = { on: false, M: null, my: null, op: null, acts: new Map(), ball: null, q: [], wait: 0, block: false, ended: false, scene: false, poss: null, want: null, zoneY: null, minAcc: 0, speed: 2, camNear: true, shake: 0, seen: 0, shown: [0, 0], half: false, mood: 0, home: true };
 
   const W = (x, y) => [x, -y];
   const planeG = (w, h) => new THREE.PlaneGeometry(w, h).rotateX(-Math.PI / 2);
@@ -430,6 +430,7 @@ const GL = (() => {
     ballV.tg = tg; const pts = new THREE.Points(tg, fx.mat); pts.frustumCulled = false; pts.renderOrder = 6; scene.add(pts);
   }
   function updateBallVis(dt, b) {
+    if (b.pop) { b.pop = false; ballV.vis = 0; ballV.x = b.x; ballV.y = b.y; ballV.z = 0; ballV.trail.length = 0; }
     ballV.vis += (1 - ballV.vis) * (1 - Math.exp(-6 * dt));
     const d = Math.hypot(b.x - ballV.x, b.y - ballV.y), k = d > 6 ? 1 : 1 - Math.exp(-40 * dt);
     ballV.x += (b.x - ballV.x) * k; ballV.y += (b.y - ballV.y) * k; ballV.z += (b.z - ballV.z) * k;
@@ -521,98 +522,258 @@ const GL = (() => {
 
   // =====================================================================
   // DIREÇÃO DE CENA
+  // O motor de regras decide os lances; aqui eles viram movimento.
+  // Jogadores têm velocidade e aceleração limitadas; a bola tem quatro
+  // estados (no pé, rolando, no ar, parada) e nunca muda de lugar sozinha.
+  // Os roteiros esperam condições ("até o jogador dominar") em vez de
+  // tempos fixos, para que o lance não atropele a física.
   // =====================================================================
+  const SPD = { walk: 2, jog: 4.4, run: 6.4, sprint: 8 }, ACC = 10, GOALY = 52.5;
   const dirOf = S => (S === V.my ? 1 : -1);
-  const team = S => [...V.acts.values()].filter(a => a.S === S && !a.gone);
+  const other = S => (S === V.my ? V.op : V.my);
+  const sideOf = s => (s === 'h' ? V.M.h : V.M.a);
+  const team = S => { const out = []; for (const a of V.acts.values()) if (a.S === S && !a.gone && !a.leaving) out.push(a); return out; };
   const field = S => team(S).filter(a => a.o.role > 0);
   const keeper = S => team(S).find(a => a.o.role === 0);
-  const near = (list, p) => list.slice().sort((a, b) => Math.hypot(a.x - p.x, a.y - p.y) - Math.hypot(b.x - p.x, b.y - p.y))[0];
-  const live = id => { const a = V.acts.get(id); return a && !a.gone ? a : null; };
+  const dist = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
+  const near = (list, p) => { let best = null, bd = 1e9; for (const a of list) { const d = dist(a, p); if (d < bd) { bd = d; best = a; } } return best; };
+  const live = id => { const a = V.acts.get(id); return a && !a.gone && !a.leaving ? a : null; };
+  const owns = S => V.ball.mode === 'held' && V.ball.owner && V.ball.owner.S === S;
+  const step = (fn, after = 0) => ({ fn, after });
+  const until = (cond, max, fn, after = 0, extra) => Object.assign({ until: cond, max, fn, after }, extra);
+  const inBox = (a, b) => a.o.role === 0 && Math.abs(b.x) < 20 && b.y * a.dir < -36;
+
+  function homeOf(a) {
+    const sp = a.S.c.spots[a.o.i] || { x: 50, y: 50 };
+    return { x: (sp.x - 50) * 0.62 * a.dir, y: (22 - sp.y * 0.78) * a.dir };
+  }
   function addActor(S, o, enter) {
-    const c = S.c, d = dirOf(S), sp = c.spots[o.i] || { x: 50, y: 50 };
-    const a = { o, S, dir: d, bx: (sp.x - 50) * 0.62 * d, by: (22 - sp.y * 0.78) * d, x: 0, y: 0, face: d > 0 ? Math.PI / 2 : -Math.PI / 2, kick: 0, jump: 0, dive: 0, diveExt: 0, diveDir: 1, slide: 0, cele: 0, gone: false, sc: null };
-    a.x = enter ? -35.5 : a.bx; a.y = enter ? 0 : a.by;
+    const a = { o, S, dir: dirOf(S), x: 0, y: 0, vx: 0, vy: 0, face: 0, kick: 0, jump: 0, dive: 0, diveExt: 0, diveDir: 1, slide: 0, cele: 0, gone: false, leaving: false, go: null, recv: null, holdT: 1 };
+    const h = homeOf(a); a.bx = h.x; a.by = h.y;
+    if (enter) { a.x = -36; a.y = rnd(-4, 4); } else { a.x = a.bx; a.y = a.by; }
+    a.face = a.dir > 0 ? Math.PI / 2 : -Math.PI / 2;
     a.fig = new Fig(o.p, V.kits[S === V.my ? 0 : 1], o.role === 0, o.role === 0 ? 1 : S.on.indexOf(o) + 1);
     a.fig.x = a.x; a.fig.y = a.y; a.fig.face = a.face; a.fig.sc = enter ? 2 : 3.1;
     V.acts.set(o.p.id, a);
-    if (enter) ring(a.bx, a.by, '#ffffff', 2, 6, 0.5);
+    if (enter) ring(a.x, a.y, '#ffffff', 2, 6, 0.5);
     return a;
+  }
+  function leave(a, spd) {
+    a.leaving = true; a.recv = null; a.go = { x: a.x < 0 ? -37 : 37, y: a.y, spd };
+    if (V.ball.owner === a) loose(0, 0);
   }
   function syncActors() {
     for (const S of [V.my, V.op]) for (const o of S.on) {
       const a = V.acts.get(o.p.id);
       if (!a && !o.out) addActor(S, o, true);
-      else if (a && o.out && !a.gone && !a.leaving) { a.gone = true; a.fig.visible = false; if (V.ball.owner === a) drop(); }
+      else if (a && o.out && !a.leaving && !a.gone) leave(a, o.red || o.hurt ? SPD.walk : SPD.jog);
     }
   }
-  function give(a) { const b = V.ball; b.owner = a; b.mode = 'held'; b.done = null; V.poss = a.S; }
-  function drop() { const b = V.ball; b.owner = null; b.mode = 'free'; b.vx = b.vy = 0; }
-  function place(x, y) { const b = V.ball; b.owner = null; b.mode = 'free'; b.done = null; b.x = x; b.y = y; b.z = 0; b.vx = b.vy = 0; }
-  function fly(tx, ty, T, h, done, z0 = 0, z1 = 0) { const b = V.ball; b.owner = null; b.mode = 'fly'; b.sx = b.x; b.sy = b.y; b.ex = tx; b.ey = ty; b.T = Math.max(0.05, T); b.t = 0; b.h = h; b.z0 = z0; b.z1 = z1; b.done = done || null; b.vx = (tx - b.x) / b.T; b.vy = (ty - b.y) / b.T; }
-  function kick(a, power, tx, ty) { a.kick = 0.3; if (tx != null) a.face = Math.atan2(ty - a.y, tx - a.x); SFX.kick(power); }
-  function pass(from, to) {
-    const d = Math.hypot(to.x - from.x, to.y - from.y), T = clamp(d / 24, 0.25, 1.1);
-    kick(from, d / 30, to.x, to.y);
-    fly(to.x, to.y, T, d > 22 ? 2.4 : 0.15, () => { if (!to.gone) give(to); else drop(); });
+
+  // ---------- bola ----------
+  function give(a) { const b = V.ball; b.owner = a; b.mode = 'held'; b.done = null; b.intended = null; V.poss = a.S; a.recv = null; a.holdT = rnd(0.7, 1.6); if (V.want === a.S) V.want = null; }
+  function loose(vx, vy) { const b = V.ball; b.owner = null; b.mode = 'roll'; b.done = null; b.vx = vx; b.vy = vy; }
+  function dead() { const b = V.ball; b.owner = null; b.mode = 'dead'; b.done = null; b.vx = b.vy = 0; }
+  function place(x, y) { const b = V.ball; dead(); if (Math.hypot(b.x - x, b.y - y) > 0.5) b.pop = true; b.x = x; b.y = y; b.z = 0; }
+  function fly(tx, ty, T, h, done, z0 = 0, z1 = 0, keep = 0.35) {
+    const b = V.ball; b.owner = null; b.mode = 'air'; b.sx = b.x; b.sy = b.y; b.ex = tx; b.ey = ty; b.T = Math.max(0.08, T); b.t = 0; b.h = h; b.z0 = z0; b.z1 = z1; b.keep = keep; b.done = done || null;
+    b.vx = (tx - b.x) / b.T; b.vy = (ty - b.y) / b.T;
   }
-  function turnover(S) {
-    const b = V.ball, l = field(S); if (!l.length) return;
-    if (b.mode === 'held' && b.owner) {
-      const m = near(l, b); give(m); V.passT = rnd(0.6, 1.1);
-      burst(b.x, b.y, ['#ffd27a', '#ffffff'], 12, 9, 0.45, 0.35, 0.4);
-      if (R() < 0.4) flt(m.x, m.y, 'Desarme', S === V.my ? 'amber' : '');
-    } else if (b.mode === 'fly') b.done = () => { const m = near(field(S), b); if (m) give(m); };
-  }
-  function openPlay(dt) {
+  function strike(a, power, tx, ty) { a.kick = 0.3; a.face = Math.atan2(ty - a.y, tx - a.x); V.ball.kicker = a; V.ball.kickT = 0.35; SFX.kick(power); }
+  function pass(o, to, opt = {}) {
     const b = V.ball;
-    if (b.mode === 'free') { const l = field(V.poss || V.my); if (l.length) give(near(l, b)); return; }
-    if (b.mode !== 'held' || !b.owner) return;
-    V.passT -= dt; if (V.passT > 0) return;
-    const o = b.owner, d = o.dir, c = field(o.S).filter(a => a !== o);
-    if (!c.length) { V.passT = 1; return; }
-    const r = wpick(c, a => { const fwd = (a.y - o.y) * d, dist = Math.hypot(a.x - o.x, a.y - o.y); if (dist < 5 || dist > 34) return 0.02; return (a.y * d > 22 ? 0.05 : 1) * (fwd > 0 ? 1.7 : 0.6) / (1 + Math.abs(dist - 14) / 10); });
-    pass(o, r); V.passT = rnd(1.0, 2.1);
+    let tx = opt.x != null ? opt.x : to.x + to.vx * 0.55, ty = opt.y != null ? opt.y : to.y + to.vy * 0.55;
+    const far = Math.hypot(tx - to.x, ty - to.y);
+    if (far > 16) { tx = to.x + (tx - to.x) * 16 / far; ty = to.y + (ty - to.y) * 16 / far; }
+    tx = clamp(tx, -33, 33); ty = clamp(ty, -51, 51);
+    const L = Math.hypot(tx - b.x, ty - b.y), lofted = opt.h != null ? opt.h > 1 : L > 27;
+    // a bola chega quando o receptor chega: passe mais lento se ele estiver longe do ponto
+    const spd = opt.spd || (Math.hypot(tx - to.x, ty - to.y) > 6 ? SPD.sprint : SPD.run);
+    const eta = Math.hypot(tx - to.x, ty - to.y) / spd + 0.15;
+    const T = clamp(Math.max(L / (lofted ? 20 : 16), eta), 0.3, 2.8);
+    strike(o, Math.min(1, L / 30), tx, ty);
+    to.recv = { x: tx, y: ty, spd }; b.intended = to;
+    fly(tx, ty, T, opt.h != null ? opt.h : lofted ? clamp(L / 7, 2.5, 7) : 0.1, () => {
+      to.recv = null;
+      if (!to.gone && !to.leaving && dist(to, V.ball) < 2.8) give(to);
+    }, 0, 0, 0.3);
+    if (lofted && opt.h == null) b.h = clamp(T * T * 1.2, 1.5, 7);
+  }
+  function choosePass(o) {
+    const d = o.dir, opp = field(other(o.S));
+    return wpick(field(o.S).filter(a => a !== o), a => {
+      const L = dist(a, o); if (L < 6 || L > 38) return 0.01;
+      const fwd = (a.y - o.y) * d, free = opp.length ? Math.min(...opp.map(p => dist(p, a))) : 9;
+      return (a.y * d > 28 ? 0.15 : 1) * (fwd > 0 ? 1.6 : fwd > -8 ? 1 : 0.45) * clamp(free / 6, 0.25, 1.4) / (1 + Math.abs(L - 15) / 12);
+    });
+  }
+  function tackle(t) {
+    const b = V.ball;
+    t.slide = 0.45; burst(b.x, b.y, ['#ffd27a', '#ffffff'], 12, 9, 0.45, 0.35, 0.4);
+    if (R() < 0.35) flt(t.x, t.y, 'Desarme', t.S === V.my ? 'amber' : '');
+    give(t);
+  }
+  function forceGive(A) {
+    const b = V.ball, m = near(field(A), b); if (!m) return;
+    if (b.mode === 'held' && b.owner && b.owner.S !== A) {
+      if (dist(m, b) < 4) return tackle(m);
+      // passe errado do adversário, que sobra para quem estava por perto
+      const o = b.owner, L = dist(m, b); strike(o, 0.5, m.x, m.y); b.intended = m;
+      fly(m.x + m.vx * 0.3, m.y + m.vy * 0.3, clamp(L / 16, 0.3, 1.6), L > 25 ? 3 : 0.15, () => { if (dist(m, V.ball) < 2.8) give(m); });
+    } else if (b.mode !== 'air') give(m);
+  }
+  function updBall(dt) {
+    const b = V.ball;
+    b.kickT = Math.max(0, (b.kickT || 0) - dt);
+    if (b.mode === 'held') {
+      const o = b.owner;
+      if (!o || o.gone || o.leaving) { loose(0, 0); return; }
+      const fx = o.x + Math.cos(o.face) * 0.75, fy = o.y + Math.sin(o.face) * 0.75, px = b.x, py = b.y;
+      const dx = fx - b.x, dy = fy - b.y, dd = Math.hypot(dx, dy);
+      if (dd > 2.5) { const s = Math.min(dd, 22 * dt) / dd; b.x += dx * s; b.y += dy * s; }
+      else { const k = 1 - Math.exp(-16 * dt); b.x += dx * k; b.y += dy * k; }
+      b.z = Math.max(0, b.z - 8 * dt);
+      b.vx = (b.x - px) / dt; b.vy = (b.y - py) / dt; b.rot += Math.hypot(b.x - px, b.y - py) * 3.3;
+    } else if (b.mode === 'air') {
+      b.t += dt; const k = Math.min(1, b.t / b.T);
+      b.x = lerp(b.sx, b.ex, k); b.y = lerp(b.sy, b.ey, k); b.z = b.h * 4 * k * (1 - k) + lerp(b.z0, b.z1, k);
+      b.vx = (b.ex - b.sx) / b.T; b.vy = (b.ey - b.sy) / b.T; b.rot += 12 * dt;
+      if (k >= 1) { const f = b.done; loose(b.vx * b.keep, b.vy * b.keep); if (f) f(); }
+    } else if (b.mode === 'roll') {
+      const fr = Math.exp(-1.7 * dt); b.vx *= fr; b.vy *= fr;
+      b.x += b.vx * dt; b.y += b.vy * dt; b.z = Math.max(0, b.z - 9 * dt); b.rot += Math.hypot(b.vx, b.vy) * dt * 3.3;
+      if (Math.abs(b.x) > 33.8) { b.x = Math.sign(b.x) * 33.8; b.vx *= -0.3; }
+      if (Math.abs(b.y) > 51.8) { b.y = Math.sign(b.y) * 51.8; b.vy *= -0.3; }
+    } else { b.vx = 0; b.vy = 0; b.z = Math.max(0, b.z - 9 * dt); }
+  }
+
+  // ---------- jogadores ----------
+  function targetOf(a) {
+    const b = V.ball, d = a.dir;
+    if (a.go) return a.go.follow ? { x: a.go.follow.x, y: a.go.follow.y, spd: a.go.spd } : a.go;
+    if (a.recv) return a.recv;
+    if (a.o.role === 0) {
+      if (b.owner === a) return { x: a.x, y: a.y, spd: SPD.walk };
+      const t = clamp((b.y * d + GOALY) / 105, 0, 1);
+      return { x: clamp(b.x * 0.15, -3, 3), y: (-GOALY + 1.2 + t * 5.5) * d, spd: SPD.jog };
+    }
+    const att = V.poss === a.S, by = V.zoneY != null ? V.zoneY : clamp(b.y, -42, 42);
+    const x = a.bx * (att ? 1.08 : 0.8) + (b.x - a.bx) * (att ? 0.1 : 0.26);
+    let y = a.by + by * 0.55 + (att ? 5 : -5) * d;
+    if (a.o.role === 1) y = d > 0 ? Math.min(y, 14) : Math.max(y, -14);
+    if (a.o.role === 3) y = d > 0 ? Math.max(y, -30) : Math.min(y, 30);
+    if (!att && a.o.role === 1 && (y - b.y) * d > -3) y = b.y - 3 * d;
+    return { x: clamp(x, -32, 32), y: clamp(y, -50, 50), spd: att ? SPD.jog : SPD.run };
+  }
+  function dribble(a) {
+    const d = a.dir, cap = V.scene ? 44 : 24;
+    let y = a.y + 6 * d; if (y * d > cap) y = cap * d;
+    return { x: a.x * 0.96, y, spd: SPD.jog * 0.9 };
+  }
+  function press(a) {
+    const b = V.ball;
+    if (V.want === a.S) return { x: b.x, y: b.y, spd: SPD.sprint };
+    return { x: b.x * 0.92, y: b.y - 2.6 * a.dir, spd: SPD.run };
+  }
+  function steer(a, t, dt) {
+    const dx = t.x - a.x, dy = t.y - a.y, d = Math.hypot(dx, dy);
+    const want = Math.min(t.spd || SPD.jog, d * 1.6), acc = a.dive > 0 ? 40 : ACC;
+    const wx = d > 0.02 ? dx / d * want : 0, wy = d > 0.02 ? dy / d * want : 0;
+    const ex = wx - a.vx, ey = wy - a.vy, e = Math.hypot(ex, ey), k = e > 1e-6 ? Math.min(1, acc * dt / e) : 0;
+    a.vx += ex * k; a.vy += ey * k;
+    a.x += a.vx * dt; a.y += a.vy * dt;
+    const sp = Math.hypot(a.vx, a.vy), b = V.ball;
+    let f = null;
+    if (a.kick > 0 || a.dive > 0) f = null;
+    else if (sp > 0.9) f = Math.atan2(a.vy, a.vx);
+    else if (b.owner === a) f = a.dir > 0 ? Math.PI / 2 : -Math.PI / 2;
+    else f = Math.atan2(b.y - a.y, b.x - a.x);
+    if (f != null) { let df = f - a.face; while (df > Math.PI) df -= TAU; while (df < -Math.PI) df += TAU; a.face += df * Math.min(1, dt * 9); }
+  }
+  function separate(list) {
+    for (let i = 0; i < list.length; i++) for (let j = i + 1; j < list.length; j++) {
+      const a = list[i], c = list[j], dx = c.x - a.x, dy = c.y - a.y, d = Math.hypot(dx, dy);
+      if (d > 0.001 && d < 1.15) { const p = (1.15 - d) / 2 / d; a.x -= dx * p; a.y -= dy * p; c.x += dx * p; c.y += dy * p; }
+    }
+  }
+  function carrierAI(o, dt) {
+    if (o.go) return;
+    o.holdT -= dt; if (o.holdT > 0) return;
+    const t = o.o.role === 0 ? wpick(field(o.S), a => (a.o.role === 1 ? 2 : a.o.role === 2 ? 1.2 : 0.3) / (1 + dist(a, o) / 30)) : choosePass(o);
+    if (t) pass(o, t); else o.holdT = 0.6;
   }
   function simulate(dt) {
-    const b = V.ball;
-    let presser = null;
-    if (b.owner && !V.scene) { const l = field(b.owner.S === V.my ? V.op : V.my); if (l.length) presser = near(l, b); }
-    const zy = V.zoneY != null ? V.zoneY : clamp(b.y, -34, 34);
-    for (const a of V.acts.values()) {
-      if (a.gone) continue;
-      const d = a.dir, has = V.poss === a.S;
-      let tx, ty, sp = 7;
-      if (a.sc) { tx = a.sc.x; ty = a.sc.y; sp = a.sc.sp || 8.5; }
-      else if (a.o.role === 0) { tx = clamp(b.x * 0.14, -3.2, 3.2); ty = (-50 + clamp((b.y * d + 30) / 80, 0, 1) * 5.5) * d; sp = 5; }
-      else if (a === presser) { tx = b.owner.x; ty = b.owner.y + 1.6 * b.owner.dir; sp = 6.6; }
-      else { tx = a.bx * (has ? 1.1 : 0.92) + (b.x - a.bx) * 0.16; ty = a.by + zy * 0.5 + (has ? 5 : -3) * d + (a === b.owner ? 3 * d : 0); if (a === b.owner) sp = 5.4; }
-      if (!a.leaving) { tx = clamp(tx, -33, 33); ty = clamp(ty, -52, 52); }
-      const dx = tx - a.x, dy = ty - a.y, dd = Math.hypot(dx, dy), v = Math.min(sp, dd * 3.2);
-      if (dd > 0.05) { a.x += dx / dd * v * dt; a.y += dy / dd * v * dt; }
-      if (a.kick <= 0 && a.dive <= 0) { if (dd > 0.7) a.face = Math.atan2(dy, dx); else if (a !== b.owner) a.face = Math.atan2(b.y - a.y, b.x - a.x); else a.face = d > 0 ? Math.PI / 2 : -Math.PI / 2; }
+    const b = V.ball, acts = [];
+    for (const a of V.acts.values()) if (!a.gone) acts.push(a);
+    let presser = null; const chasers = [];
+    if (b.mode === 'held' && b.owner) presser = near(field(other(b.owner.S)).filter(a => !a.go && !a.recv), b);
+    else if (b.mode === 'roll') for (const S of [V.my, V.op]) {
+      const it = b.intended && b.intended.S === S && !b.intended.gone && !b.intended.leaving ? b.intended : null;
+      if (V.att && S !== V.att) continue;
+      const c = it || near(team(S).filter(a => !a.go && (a.o.role > 0 || inBox(a, b))), b); if (c) chasers.push(c);
+    }
+    for (const a of acts) {
+      let t = targetOf(a);
+      if (b.mode === 'roll' && a === b.intended) t = { x: b.x + b.vx * 0.25, y: b.y + b.vy * 0.25, spd: SPD.sprint };
+      else if (!a.go && !a.recv) {
+        if (b.owner === a && a.o.role > 0) t = dribble(a);
+        else if (a === presser) t = press(a);
+        else if (chasers.includes(a)) t = { x: b.x + b.vx * 0.25, y: b.y + b.vy * 0.25, spd: a.S === V.poss || a.S === V.want ? SPD.sprint : SPD.run };
+      }
+      steer(a, t, dt);
       a.kick = Math.max(0, a.kick - dt); a.jump = Math.max(0, a.jump - dt); a.slide = Math.max(0, a.slide - dt);
       if (a.dive > 0) { a.dive -= dt; a.diveExt = Math.min(1.2, a.diveExt + dt * 4.5); } else a.diveExt = Math.max(0, a.diveExt - dt * 1.5);
       if (a.cele > 0) a.cele = Math.max(0, a.cele - dt);
+      if (a.go && a.go.tmp && dist(a, a.go) < 0.6) a.go = null;
+      if (a.leaving && Math.abs(a.x) > 35.5) { a.gone = true; a.fig.visible = false; }
     }
-    if (b.mode === 'held' && b.owner) {
-      const o = b.owner, tx = o.x + Math.cos(o.face) * 0.9, ty = o.y + Math.sin(o.face) * 0.9;
-      b.rot += Math.hypot(tx - b.x, ty - b.y) * 2.2; b.vx = 0; b.vy = 0; b.x = tx; b.y = ty; b.z = 0;
-    } else if (b.mode === 'fly') {
-      b.t += dt; const k = Math.min(1, b.t / b.T);
-      b.x = lerp(b.sx, b.ex, k); b.y = lerp(b.sy, b.ey, k); b.z = b.h * 4 * k * (1 - k) + lerp(b.z0, b.z1, k); b.rot += 14 * dt;
-      if (k >= 1) { b.mode = 'free'; const f = b.done; b.done = null; if (f) f(); else { b.vx = 0; b.vy = 0; } }
+    separate(acts.filter(a => !a.leaving && a.dive <= 0));
+    if (presser && V.want === presser.S && b.owner && dist(presser, b.owner) < 1.45) tackle(presser);
+    if (b.mode === 'roll' && b.z < 1) {
+      let best = null, bd = 1.3;
+      for (const a of acts) { if (a.leaving || (a === b.kicker && b.kickT > 0) || (V.att && a.S !== V.att)) continue; const d = dist(a, b); if (d < bd) { bd = d; best = a; } }
+      if (best) give(best);
     }
+    if (b.mode === 'held' && b.owner && !V.scene) carrierAI(b.owner, dt);
+    updBall(dt);
   }
-  function endScene() { V.scene = false; V.zoneY = null; for (const a of V.acts.values()) if (!a.leaving) a.sc = null; }
-  function restart(S) { endScene(); const g = keeper(S) || field(S)[0]; if (g) give(g); V.passT = 0.7; V.poss = S; }
+
+  // ---------- roteiros ----------
+  function endScene() { V.scene = false; V.zoneY = null; V.att = null; for (const a of V.acts.values()) if (!a.leaving) a.go = null; }
+  function kickTaker(S) { const l = field(S); return near(l.filter(a => a.o.role === 3), { x: 0, y: 0 }) || near(l, { x: 0, y: 0 }); }
   function kickoff(S) {
-    V.scene = true; V.zoneY = 0; V.poss = S;
-    for (const a of V.acts.values()) if (!a.gone && !a.leaving) { a.sc = { x: a.bx, y: a.by, sp: 12 }; a.cele = 0; }
-    place(0, 0);
-    V.q.unshift([1.3, () => {}], [0.25, () => { SFX.whistle(1); ring(0, 0, '#ffffff', 2, 10, 0.6); const l = field(S).filter(a => a.o.role >= 2); const k = near(l.length ? l : field(S), { x: 0, y: 0 }); endScene(); if (k) give(k); V.passT = 0.3; }]);
+    const d = dirOf(S);
+    return [
+      step(() => {
+        V.scene = true; V.want = null; V.poss = S; V.zoneY = 0;
+        for (const a of V.acts.values()) if (!a.gone && !a.leaving) { const y = a.o.role === 0 ? a.by : a.dir > 0 ? Math.min(a.by, -1.5) : Math.max(a.by, 1.5); a.go = { x: a.bx, y, spd: clamp(Math.hypot(a.bx - a.x, y - a.y) / 3.5, SPD.run, SPD.sprint) }; a.recv = null; }
+        const tk = kickTaker(S); if (tk) tk.go = { x: 0, y: -0.8 * d, spd: SPD.jog };
+        place(0, 0);
+      }),
+      until(() => { for (const a of V.acts.values()) if (!a.gone && !a.leaving && a.go && dist(a, a.go) > 2.5) return false; return true; }, 6, null, 0.5, { soft: 1 }),
+      step(() => {
+        SFX.whistle(1); ring(0, 0, '#ffffff', 2, 10, 0.6);
+        const tk = kickTaker(S); endScene();
+        if (!tk) return;
+        give(tk); const m = near(field(S).filter(a => a !== tk && a.o.role === 2), { x: 0, y: -10 * d });
+        if (m) pass(tk, m);
+      })
+    ];
+  }
+  function goalKick(D) {
+    const d = dirOf(D), g = keeper(D), x = rnd(-6, 6), y = (-GOALY + 5.5) * d;
+    return [
+      step(() => { place(x, y); V.scene = true; V.poss = D; if (g) g.go = { x, y: y - 1.1 * d, spd: SPD.jog }; }),
+      until(() => !g || dist(g, { x, y: y - 1.1 * d }) < 1.2, 3.5, null, 0.4),
+      step(() => {
+        endScene(); if (!g) return;
+        give(g); const t = wpick(field(D), a => (a.o.role >= 2 ? 1 : 0.35));
+        if (t) pass(g, t, { h: 6 });
+      })
+    ];
   }
   function goalFX(e, A, tx, dir) {
-    const my = A === V.my, col = V.kits[my ? 0 : 1].shirt, gy = 52.5 * dir, g = dir > 0 ? goals.top : goals.bot;
+    const my = A === V.my, col = V.kits[my ? 0 : 1].shirt, gy = GOALY * dir, g = dir > 0 ? goals.top : goals.bot;
     V.shown[my ? 0 : 1]++; hud(); pop(my ? '#hSm' : '#hSo');
     g.flash.material.color.set(col); g.flashT = 1; g.netKick = 1;
     burst(tx, gy, [col, '#ffffff', '#ffd23f'], 170, 30, 1.2, 1.1, 0.9);
@@ -623,122 +784,209 @@ const GL = (() => {
     big('Gol!', `${e.n}, ${e.m}'`, my ? '#ffffff' : col);
     tick(e.m, '⚽ ' + e.x);
     SFX.goal(my, V.home);
-    for (const a of team(A)) a.cele = 2.3;
-    const sh = live(e.pid); if (sh) sh.sc = { x: (sh.x > 0 ? 1 : -1) * 24, y: 44 * dir, sp: 7 };
-    drop();
+    for (const a of team(A)) a.cele = 2.8;
   }
-  function shoot(e, sh, A, D, dir, hz) {
-    const b = V.ball, gy = 52.5 * dir, gk = keeper(D), side = R() < 0.5 ? -1 : 1, mine = A === V.my;
-    if (!hz) { place(sh.x, sh.y + 0.7 * dir); kick(sh, 1, 0, gy); }
-    const T = clamp(Math.hypot(b.x, gy - b.y) / 34, 0.26, 0.75), z0 = hz || 0, after = [];
-    const dive = (s, x) => { if (!gk) return; gk.dive = 0.75; gk.diveDir = s; gk.sc = { x, y: gy - 1.1 * dir, sp: 9 }; };
+  function celebrate(sh, A, D, d) {
+    const cx = (sh.x >= 0 ? 1 : -1) * 27, cy = (GOALY - 5) * d;
+    sh.go = { x: cx, y: cy, spd: SPD.sprint };
+    for (const a of field(A)) if (a !== sh) a.go = a.y * d > 5 ? { x: cx * 0.85 + rnd(-4, 4), y: cy - rnd(3, 9) * d, spd: SPD.run } : { x: a.x, y: a.y + 5 * d, spd: SPD.walk };
+    for (const a of team(D)) a.go = { x: a.bx, y: a.by, spd: SPD.walk };
+  }
+  function shoot(e, sh, A, D, d, hz) {
+    const b = V.ball, gy = GOALY * d, gk = keeper(D), side = R() < 0.5 ? -1 : 1, mine = A === V.my, st = [];
+    if (!hz && b.mode !== 'dead' && b.owner !== sh && dist(sh, b) < 4) give(sh);
+    if (hz) { sh.jump = 0.55; SFX.kick(0.6); } else strike(sh, 1, 0, gy);
+    sh.go = { x: sh.x + sh.vx * 0.4, y: sh.y + sh.vy * 0.4, spd: SPD.walk };
+    const L = Math.hypot(b.x, gy - b.y), T = clamp(L / 27, 0.22, 0.8), z0 = hz ? Math.max(b.z, 1.6) : 0;
+    const dive = (s, x) => { if (!gk) return; gk.dive = 0.8; gk.diveDir = s; gk.go = { x, y: gy - 1 * d, spd: 9 }; };
     if (e.t === 'gol') {
-      const tx = side * rnd(0.8, 3.1);
-      dive(R() < 0.6 ? -side : side, (R() < 0.6 ? -side : side) * 1.8);
-      fly(tx, gy + 1.5 * dir, T, rnd(0.1, 0.9), () => goalFX(e, A, tx, dir), z0, rnd(0.3, 1.5));
-      after.push([T + 2.6, () => {}], [0, () => kickoff(D)]);
+      const tx = side * rnd(0.7, 3.2), ds = R() < 0.55 ? -side : side;
+      dive(ds, ds * rnd(1.2, 2.4));
+      fly(tx, gy + 1.4 * d, T, hz ? 0.3 : rnd(0.1, 0.9), () => { dead(); goalFX(e, A, tx, d); }, z0, rnd(0.2, 1.7));
+      st.push(until(() => V.ball.mode === 'dead', 2, null, 0.5));
+      st.push(step(() => celebrate(sh, A, D, d), 3.3));
+      st.push(step(() => { V.q.unshift(...kickoff(D)); }));
     } else if (e.t === 'def') {
-      const tx = side * rnd(0.4, 2.9);
-      dive(side, tx * 0.85);
-      fly(tx, gy - 1.3 * dir, T, rnd(0.1, 0.8), () => {
-        ring(b.x, b.y, '#cfe6ff', 1, 5, 0.45); burst(b.x, b.y, ['#9fd1ff', '#ffffff'], 22, 12, 0.6, 0.45, 0.5);
-        flt(b.x, b.y, 'Defesa!', mine ? 'cool' : 'amber'); V.shake = Math.max(V.shake, 0.3); V.mood = 1;
+      const tx = side * rnd(0.3, 2.7), catchIt = R() < 0.65 || e.k === 'pen';
+      dive(side, tx * 0.95);
+      fly(tx, gy - 0.9 * d, T, hz ? 0.3 : rnd(0.1, 0.7), () => {
+        const bb = V.ball;
+        ring(bb.x, bb.y, '#cfe6ff', 1, 5, 0.45); burst(bb.x, bb.y, ['#9fd1ff', '#ffffff'], 22, 12, 0.6, 0.45, 0.5);
+        flt(bb.x, bb.y, catchIt ? 'Defesa!' : 'Espalmou!', mine ? 'cool' : 'amber'); V.shake = Math.max(V.shake, 0.3); V.mood = 1;
         if (mine === V.home) SFX.ooh(1); else SFX.cheer(0.4);
-        tick(e.m, e.x); if (gk) give(gk);
+        tick(e.m, e.x);
+        if (catchIt && gk) { give(gk); gk.holdT = 1.8; } else loose(side * rnd(5, 9), -d * rnd(2, 6));
       }, z0, rnd(0.3, 1.4));
-      after.push([T + 1.2, () => {}], [0, () => restart(D)]);
+      st.push(until(() => V.ball.mode !== 'air', 2, null, 1.1));
     } else if (e.t === 'trave') {
-      dive(side, side * 1.6);
-      fly(side * 3.73, gy, T, rnd(0.1, 0.6), () => {
-        burst(b.x, b.y, ['#ffffff', '#ffd27a'], 26, 14, 0.6, 0.5, 0.6, 18, 1.5); flt(b.x, b.y, 'Na trave!', 'amber'); V.shake = Math.max(V.shake, 0.4); V.mood = 1;
+      dive(side, side * 1.8);
+      fly(side * 3.66, gy, T, rnd(0.1, 0.6), () => {
+        const bb = V.ball;
+        burst(bb.x, bb.y, ['#ffffff', '#ffd27a'], 26, 14, 0.6, 0.5, 0.6, 18, 1.5); flt(bb.x, bb.y, 'Na trave!', 'amber'); V.shake = Math.max(V.shake, 0.4); V.mood = 1;
         SFX.post(); SFX.ooh(1); tick(e.m, e.x);
-        fly(side * rnd(7, 15), gy - rnd(9, 15) * dir, 0.6, 2.2, null, b.z, 0);
-      }, z0, rnd(0.7, 2.1));
-      after.push([T + 1.6, () => {}], [0, () => restart(D)]);
+        loose(-side * rnd(2, 6), -d * rnd(8, 13));
+      }, z0, rnd(0.6, 2.3));
+      st.push(until(() => V.ball.mode !== 'air', 2, null, 1.2));
     } else {
-      const blk = !hz && R() < 0.3 ? near(field(D), { x: b.x * 0.6, y: b.y + (gy - b.y) * 0.4 }) : null;
+      const blk = !hz && e.k !== 'pen' && e.k !== 'falta' && R() < 0.3 ? near(field(D), { x: b.x * 0.7, y: b.y + (gy - b.y) * 0.3 }) : null;
       if (blk) {
-        const tx = lerp(b.x, 0, 0.3), ty = b.y + (gy - b.y) * 0.35;
-        blk.sc = { x: tx, y: ty, sp: 11 }; blk.slide = 0.5;
-        fly(tx, ty, T * 0.4, 0.1, () => { flt(tx, ty, 'Bloqueio', ''); burst(tx, ty, ['#ffd27a', '#ffffff'], 12, 9, 0.45, 0.35, 0.4); tick(e.m, e.x); fly(side * rnd(12, 24), ty + rnd(-8, 2) * dir, 0.6, 2.4, null); });
+        const lx = lerp(b.x, 0, 0.25), ly = b.y + (gy - b.y) * 0.22;
+        blk.go = { x: lx, y: ly, spd: SPD.sprint, tmp: 1 }; blk.slide = 0.5;
+        fly(lx, ly, T * 0.35, 0.15, () => { flt(lx, ly, 'Bloqueio', ''); burst(lx, ly, ['#ffd27a', '#ffffff'], 12, 9, 0.45, 0.35, 0.4); tick(e.m, e.x); loose(side * rnd(5, 10), -d * rnd(2, 6)); });
+        st.push(until(() => V.ball.mode !== 'air', 1.5, null, 1.0));
       } else {
-        dive(side, side * 1.2);
-        fly(side * rnd(4.8, 9), gy + 5 * dir, T * 1.15, rnd(0.2, 1.4), () => { if (mine === V.home) SFX.ooh(0.6); tick(e.m, e.x); }, z0, rnd(0.8, 5.5));
+        dive(side, side * 1.4);
+        fly(side * rnd(4.6, 9), (GOALY + 2.5) * d, T * 1.15, hz ? 0.4 : rnd(0.2, 1.4), () => { dead(); if (mine === V.home) SFX.ooh(0.6); tick(e.m, e.x); }, z0, rnd(0.6, 4.5));
+        st.push(until(() => V.ball.mode === 'dead', 2, null, 1.0));
+        st.push(step(() => { V.q.unshift(...goalKick(D)); }));
       }
-      after.push([T + 1.2, () => {}], [0, () => restart(D)]);
     }
-    V.q.unshift(...after);
+    return st;
   }
   function chanceScene(e) {
-    const A = e.s === 'h' ? V.M.h : V.M.a, D = A === V.M.h ? V.M.a : V.M.h, dir = dirOf(A), gy = 52.5 * dir, mine = A === V.my, k = e.k;
-    const sh = live(e.pid) || field(A).pop();
-    if (!sh) { tick(e.m, e.x); if (e.t === 'gol') { V.shown[mine ? 0 : 1]++; hud(); } return []; }
-    const mates = field(A).filter(a => a !== sh);
-    const as = live(e.aid) && live(e.aid) !== sh ? live(e.aid) : (mates.filter(a => a.o.role >= 2)[0] || mates[0] || sh);
-    const sx = R() < 0.5 ? -1 : 1, steps = [], st = (d, fn) => steps.push([d, fn]);
+    const A = sideOf(e.s), D = other(A), d = dirOf(A), k = e.k, mine = A === V.my, fw = field(A);
+    const sh = live(e.pid) || fw.slice().sort((p, q) => (q.y - p.y) * d)[0];
+    if (!sh) return [step(() => { tick(e.m, e.x); if (e.t === 'gol') { V.shown[mine ? 0 : 1]++; hud(); } })];
+    let as = live(e.aid);
+    if (!as || as === sh || as.o.role === 0) as = fw.filter(a => a !== sh && a.o.role >= 2).sort((p, q) => dist(p, sh) - dist(q, sh))[0] || null;
+    const side = R() < 0.5 ? -1 : 1, st = [];
     let hz = 0;
-    st(0.3, () => { V.scene = true; V.poss = A; V.mood = Math.max(V.mood, 0.6); const b = V.ball; if (!b.owner || b.owner.S !== A) { const m = near(mates.length ? mates : [sh], b); give(m); burst(b.x, b.y, ['#ffd27a', '#ffffff'], 10, 8, 0.4, 0.3, 0.4); } });
+    // 1) o time do lance precisa estar com a bola: desarme, sobra ou domínio
+    st.push(step(() => { V.scene = true; V.mood = Math.max(V.mood, 0.6); if (!owns(A)) V.want = A; }));
+    st.push(until(() => owns(A), 4, () => { if (!owns(A)) forceGive(A); V.want = null; }, 0, { soft: 1 }));
+    st.push(until(() => owns(A), 2.5, () => { V.att = A; if (!owns(A) && V.ball.mode !== 'air') forceGive(A); }));
+    // passe para quem está chegando, esperando o domínio
+    const relay = (recv, opt) => {
+      st.push(until(() => V.ball.mode !== 'air', 2.5, () => {
+        if (recv.gone || V.ball.owner === recv) return;
+        if (!owns(A)) forceGive(A);
+        const o = V.ball.owner; if (o && o !== recv) pass(o, recv, typeof opt === 'function' ? opt() : opt || {});
+      }));
+      st.push(until(() => V.ball.owner === recv || recv.gone || recv.leaving, 4.5, () => { if (V.ball.owner !== recv && V.ball.mode !== 'air' && !recv.gone) give(recv); }, 0, { info: () => `mode=${V.ball.mode} own=${V.ball.owner ? (V.ball.owner.S === A ? 'A' : 'D') + V.ball.owner.o.code : '-'} d=${Math.round(dist(recv, V.ball))} go=${!!recv.go} int=${V.ball.intended === recv}` }));
+    };
     if (k === 'pen') {
-      st(1.5, () => {
-        SFX.whistle(1, true); setTimeout(() => SFX.ooh(0.8), 300); big('Pênalti!', mine ? 'A favor' : 'Contra', '#ffd23f', true);
-        V.zoneY = 24 * dir; place(0, 41.5 * dir); sh.sc = { x: 0, y: 38 * dir };
-        for (const a of V.acts.values()) if (!a.gone && a !== sh && a.o.role > 0) a.sc = { x: clamp(a.bx * 1.2 + rnd(-3, 3), -30, 30), y: rnd(27, 33) * dir };
-        const g = keeper(D); if (g) g.sc = { x: 0, y: gy - 0.6 * dir };
-      });
-      st(0.55, () => { sh.sc = { x: 0, y: 40.4 * dir, sp: 6 }; });
+      const sx = side * rnd(2, 9), spot = { x: sx, y: 40 * d };
+      st.push(step(() => { V.zoneY = 26 * d; const o = V.ball.owner; if (o) o.go = { x: sx, y: 40 * d, spd: SPD.run }; const f = near(field(D), spot); if (f) { f.go = { follow: o || sh, spd: SPD.sprint }; V.fouler = f; } }));
+      st.push(until(() => { const o = V.ball.owner; return !o || (o.y * d > 36 && V.fouler && dist(o, V.fouler) < 1.8); }, 3.2, () => {
+        const o = V.ball.owner, f = V.fouler; V.fouler = null;
+        if (f) { f.slide = 0.55; f.go = null; } if (o) { o.slide = 0.8; o.go = null; }
+        dead(); SFX.whistle(1, true); setTimeout(() => SFX.ooh(0.8), 300); big('Pênalti!', mine ? 'A favor' : 'Contra', '#ffd23f', true);
+      }, 1.5, { soft: 1 }));
+      st.push(step(() => {
+        place(0, (GOALY - 11) * d);
+        for (const a of [...field(A), ...field(D)]) if (a !== sh) a.go = { x: clamp(a.x, -26, 26), y: rnd(29, 34) * d, spd: SPD.jog };
+        sh.go = { x: -side * 0.7, y: (GOALY - 13.6) * d, spd: SPD.run };
+        const g = keeper(D); if (g) g.go = { x: 0, y: (GOALY - 0.5) * d, spd: SPD.jog };
+      }));
+      st.push(until(() => !sh.go || dist(sh, sh.go) < 0.8, 6, null, 1.0));
+      st.push(step(() => { sh.go = { x: 0, y: (GOALY - 11.7) * d, spd: SPD.jog }; }));
+      st.push(until(() => dist(sh, V.ball) < 1.1, 2, null));
     } else if (k === 'falta') {
-      const px = rnd(-13, 13), py = rnd(25, 30) * dir, L = Math.hypot(px, gy - py);
-      st(1.4, () => {
-        SFX.whistle(1); flt(px, py, 'Falta perigosa', 'amber'); ring(px, py, '#ffffff', 1, 4, 0.4);
-        V.zoneY = 26 * dir; place(px, py); sh.sc = { x: px - 0.3, y: py - 3.2 * dir };
-        const wx = px - px * 9.15 / L, wy = py + (gy - py) * 9.15 / L;
-        field(D).sort((a, b2) => Math.hypot(a.x - wx, a.y - wy) - Math.hypot(b2.x - wx, b2.y - wy)).slice(0, 3).forEach((a, i) => { a.sc = { x: wx + (i - 1) * 0.95, y: wy, sp: 10 }; });
-      });
-      st(0.5, () => { sh.sc = { x: px, y: py - 1.1 * dir, sp: 6 }; });
+      const px = side * rnd(3, 14), py = rnd(24, 29) * d, spot = { x: px, y: py };
+      st.push(step(() => { V.zoneY = 18 * d; const o = V.ball.owner; if (o) o.go = { x: px, y: py, spd: SPD.run }; const f = near(field(D), spot); if (f) { f.go = { follow: o || sh, spd: SPD.sprint }; V.fouler = f; } }));
+      st.push(until(() => { const o = V.ball.owner; return !o || (dist(o, spot) < 3 && V.fouler && dist(o, V.fouler) < 1.8); }, 3, () => {
+        const o = V.ball.owner, f = V.fouler; V.fouler = null;
+        if (f) { f.slide = 0.5; f.go = null; } if (o) { o.slide = 0.7; o.go = null; }
+        dead(); SFX.whistle(1); ring(V.ball.x, V.ball.y, '#ffffff', 1, 4, 0.4); flt(V.ball.x, V.ball.y, 'Falta', '');
+      }, 1.2, { soft: 1 }));
+      st.push(step(() => {
+        const bb = V.ball, fx_ = clamp(bb.x, -16, 16), fy = d > 0 ? clamp(bb.y, 22, 32) : clamp(bb.y, -32, -22);
+        place(fx_, fy); V.fk = { x: fx_, y: fy };
+        const gy = GOALY * d, L = Math.hypot(fx_, gy - fy), wx = fx_ - fx_ * 9.15 / L, wy = fy + (gy - fy) * 9.15 / L;
+        field(D).sort((p, q) => Math.hypot(p.x - wx, p.y - wy) - Math.hypot(q.x - wx, q.y - wy)).slice(0, 3).forEach((a, i) => { a.go = { x: wx + (i - 1) * 0.9, y: wy, spd: SPD.run }; });
+        sh.go = { x: fx_ - side * 0.5, y: fy - 2.8 * d, spd: SPD.run };
+        flt(fx_, fy, 'Falta perigosa', 'amber');
+      }));
+      st.push(until(() => !sh.go || dist(sh, sh.go) < 0.8, 6, null, 0.8));
+      st.push(step(() => { sh.go = { x: V.fk.x, y: V.fk.y - 0.8 * d, spd: SPD.jog }; }));
+      st.push(until(() => dist(sh, V.ball) < 1.1, 2, null));
     } else if (k === 'esc') {
-      const cx = 33.6 * sx, cy = 52 * dir, hx = rnd(-4.5, 4.5), hy = (52.5 - rnd(6, 10)) * dir, tk = as !== sh ? as : (mates[0] || sh);
+      const cx = 33.6 * side, cy = (GOALY - 0.3) * d, hx = rnd(-5, 5), hy = (GOALY - rnd(6, 10)) * d;
+      const taker = near(fw.filter(a => a !== sh), { x: cx, y: cy }) || sh;
       hz = 1.9;
-      st(1.6, () => {
-        flt(cx * 0.88, cy * 0.94, 'Escanteio', ''); SFX.ooh(0.35); V.zoneY = 36 * dir; place(cx, cy);
-        tk.sc = { x: cx - sx * 0.3, y: cy - 1.4 * dir, sp: 11 }; sh.sc = { x: hx + rnd(-3, 3), y: hy - 4 * dir, sp: 9 };
-        mates.filter(a => a !== tk).slice(-3).forEach(a => { a.sc = { x: rnd(-9, 9), y: (52.5 - rnd(5, 14)) * dir, sp: 9 }; });
-        field(D).sort((a, b2) => Math.abs(b2.by) - Math.abs(a.by)).slice(0, 5).forEach(a => { a.sc = { x: rnd(-8, 8), y: (52.5 - rnd(3, 11)) * dir, sp: 9 }; });
-      });
-      st(0.92, () => { kick(tk, 0.8, hx, hy); sh.sc = { x: hx, y: hy - 0.4 * dir, sp: 10 }; fly(hx, hy, 0.9, 5, null, 0, 1.9); });
-      st(0.02, () => { sh.jump = 0.55; SFX.kick(0.6); });
+      st.push(step(() => { V.zoneY = 30 * d; const o = V.ball.owner; if (o) o.go = { x: side * 22, y: 37 * d, spd: SPD.run }; }));
+      st.push(until(() => { const o = V.ball.owner; return !o || o.y * d > 31; }, 4, () => {
+        const o = V.ball.owner, blk = near(field(D), V.ball);
+        if (blk) { blk.slide = 0.45; blk.go = { x: V.ball.x, y: V.ball.y + 1.5 * d, spd: SPD.sprint, tmp: 1 }; }
+        if (o) { strike(o, 0.6, side * 30, GOALY * d); o.go = null; }
+        fly(side * rnd(14, 26), (GOALY + 2.5) * d, 0.6, 0.8, () => dead(), 0, 0, 0);
+      }, 0, { soft: 1 }));
+      st.push(until(() => V.ball.mode === 'dead', 2, () => {
+        SFX.whistle(1); flt(cx * 0.9, cy * 0.94, 'Escanteio', ''); SFX.ooh(0.35);
+        taker.go = { x: cx - side * 0.9, y: cy - 1.3 * d, spd: SPD.sprint };
+        sh.go = { x: hx + side * rnd(3, 6), y: hy - 5 * d, spd: SPD.jog };
+        fw.filter(a => a !== taker && a !== sh && a.o.role >= 2).slice(0, 3).forEach(a => { a.go = { x: rnd(-9, 9), y: (GOALY - rnd(6, 15)) * d, spd: SPD.jog }; });
+        field(D).sort((p, q) => (q.y - p.y) * d).slice(0, 6).forEach(a => { a.go = { x: rnd(-9, 9), y: (GOALY - rnd(3, 12)) * d, spd: SPD.jog }; });
+        const g = keeper(D); if (g) g.go = { x: 0, y: (GOALY - 0.8) * d, spd: SPD.jog };
+      }, 0.5));
+      st.push(step(() => place(cx, cy)));
+      st.push(until(() => !taker.go || dist(taker, taker.go) < 1, 6, null, 0.6));
+      st.push(step(() => { sh.go = { x: hx, y: hy, spd: SPD.sprint }; give(taker); strike(taker, 0.8, hx, hy); fly(hx, hy, 0.95, 5.5, null, 0, 1.9, 0); }));
+      st.push(until(() => V.ball.mode !== 'air', 1.5, null));
     } else {
       const far = k === 'longe', fast = k === 'contra';
-      const ax = rnd(11, 21) * sx, ay = (far ? 12 : fast ? 16 : 28) * dir, tx = rnd(-8, 8), ty = (far ? rnd(24, 28) : fast ? rnd(35, 39) : rnd(40, 45)) * dir;
-      st(0.25, () => { V.zoneY = (far ? 16 : fast ? 10 : 30) * dir; if (as !== sh) as.sc = { x: ax, y: ay, sp: 9.5 }; sh.sc = { x: tx * 0.7, y: ty - 9 * dir, sp: 8.5 }; });
-      st(0.72, () => { const o = V.ball.owner; if (o && o !== as && as !== sh) { kick(o, 0.5, ax, ay); fly(ax, ay, 0.62, Math.hypot(ax - o.x, ay - o.y) > 22 ? 2.6 : 0.2, () => give(as)); } });
-      st(0.5, () => { if (as !== sh && V.ball.owner !== as) give(as); sh.sc = { x: tx, y: ty, sp: 10 }; });
-      st(0.62, () => { if (as !== sh) { kick(as, 0.6, tx, ty); fly(tx, ty, 0.55, far ? 0.2 : 1.1, null); } });
+      const tx = side * rnd(far ? 0 : 3, far ? 10 : 10), ty = (far ? rnd(21, 26) : fast ? rnd(26, 31) : rnd(36, 42)) * d;
+      if (fast) {
+        st.push(step(() => { V.zoneY = 0; sh.go = { x: tx, y: ty, spd: SPD.sprint }; }, 0.3));
+        relay(sh, () => ({ x: tx, y: ty, h: 3.5 }));
+        st.push(step(() => { sh.go = { x: tx * 0.5, y: rnd(37, 41) * d, spd: SPD.sprint }; }));
+        st.push(until(() => sh.y * d > 35, 1.8, null, 0, { soft: 1 }));
+      } else {
+        const ax = as ? lerp(as.x, side * rnd(8, 18), 0.5) : side * rnd(8, 18), ay = (as ? clamp(as.y * d + 9, 14, 25) : rnd(17, 25)) * d;
+        st.push(step(() => { V.zoneY = (far ? 16 : 24) * d; if (as) as.go = { x: ax, y: ay, spd: SPD.run }; sh.go = { x: tx * 0.6, y: ty - (far ? 3 : 9) * d, spd: SPD.run }; }));
+        if (as) { st.push(until(() => dist(as, { x: ax, y: ay }) < 9, 3, null, 0, { soft: 1 })); relay(as, { x: ax, y: ay }); }
+        st.push(step(() => { sh.go = { x: tx, y: ty, spd: far ? SPD.run : SPD.sprint }; }, 0.3));
+        relay(sh, () => ({ x: tx, y: ty }));
+        st.push(step(() => { sh.go = { x: tx * 0.85, y: ty + 2 * d, spd: SPD.jog }; }, far ? 0.4 : 0.25));
+      }
     }
-    st(0, () => shoot(e, sh, A, D, dir, hz));
-    return steps;
+    st.push(step(() => { V.q.unshift(...shoot(e, sh, A, D, d, hz)); }));
+    return st;
   }
   function cardScene(e) {
     const a = live(e.pid), red = e.t === 'red';
-    if (!a) { tick(e.m, (red ? '🟥 ' : '🟨 ') + e.x); syncActors(); return []; }
-    const mine = a.S === V.my;
-    return [[red ? 1.5 : 1.0, () => {
-      SFX.whistle(1); ring(a.x, a.y, '#ffffff', 1, 4, 0.4); flt(a.x, a.y, red ? 'Expulso!' : 'Amarelo', red ? '' : 'amber'); tick(e.m, (red ? '🟥 ' : '🟨 ') + e.x);
-      if (mine === V.home) SFX.boo(); else if (red) SFX.cheer(0.6);
-      if (red) { big('Vermelho', last(a.o.p.n), '#ff6f66', true); a.leaving = true; a.sc = { x: -38, y: a.y, sp: 6 }; if (V.ball.owner === a) drop(); }
-    }], [0, () => { if (red) { a.gone = true; a.fig.visible = false; } }]];
+    if (!a) return [step(() => { tick(e.m, (red ? '🟥 ' : '🟨 ') + e.x); syncActors(); })];
+    const b = V.ball, vict = b.owner && b.owner.S !== a.S && dist(a, b.owner) < 18 ? b.owner : near(field(other(a.S)), a);
+    return [
+      step(() => { V.scene = true; if (vict) a.go = { follow: vict, spd: SPD.sprint }; }),
+      until(() => !vict || dist(a, vict) < 1.5, 3.2, () => {
+        V.dbg.card = (V.dbg.card || 0) + 1;
+        a.go = { x: a.x, y: a.y, spd: SPD.walk }; a.slide = 0.5; if (vict) { vict.slide = 0.7; vict.go = { x: vict.x, y: vict.y, spd: SPD.walk }; }
+        SFX.whistle(1); ring(a.x, a.y, '#ffffff', 1, 4, 0.4); flt(a.x, a.y, red ? 'Expulso!' : 'Amarelo', red ? '' : 'amber'); tick(e.m, (red ? '🟥 ' : '🟨 ') + e.x);
+        if ((a.S === V.my) === V.home) SFX.boo(); else if (red) SFX.cheer(0.6);
+        if (red) big('Vermelho', last(a.o.p.n), '#ff6f66', true);
+        if (V.ball.mode !== 'air') dead();
+      }, 1.4, { soft: 1 }),
+      step(() => {
+        if (red) leave(a, SPD.walk);
+        const v = vict && !vict.gone && !vict.leaving ? vict : near(field(other(a.S)), V.ball);
+        endScene(); if (v) { give(v); v.holdT = 0.6; }
+      })
+    ];
   }
   function injScene(e) {
     const a = live(e.pid);
-    return [[1.3, () => { if (a) { flt(a.x, a.y, 'Lesão', ''); a.slide = 1.2; if (V.ball.owner === a) drop(); } tick(e.m, '🩹 ' + e.x); }], [0, () => { if (V.M.pend) { V.block = true; injSheet(); } else syncActors(); }]];
+    return [
+      step(() => { V.scene = true; if (a) { a.slide = 2.2; a.go = { x: a.x, y: a.y, spd: 0.2 }; flt(a.x, a.y, 'Lesão', ''); if (V.ball.owner === a) dead(); } tick(e.m, '🩹 ' + e.x); }, 1.7),
+      step(() => { if (V.M.pend) { V.block = true; injSheet(); } else syncActors(); })
+    ];
   }
   function handle(e) {
-    const lazy = f => V.q.push([0, () => { V.q.unshift(...f(e)); }]);
+    const lazy = f => V.q.push(step(() => { V.q.unshift(...f(e)); }));
     if (e.t === 'gol' || e.t === 'def' || e.t === 'fora' || e.t === 'trave') lazy(chanceScene);
     else if (e.t === 'ya' || e.t === 'red') lazy(cardScene);
     else if (e.t === 'inj') lazy(injScene);
-    else if (e.t === 'sub') V.q.push([0.4, () => { tick(e.m, '🔁 ' + e.x); syncActors(); }]);
-    else if (e.t === 'ht') V.q.push([1.7, () => { SFX.whistle(2, true); big('Intervalo', `${V.shown[0]} × ${V.shown[1]}`, '#fff', true); tick(null, 'Fim do primeiro tempo'); }], [0, () => { V.block = true; V.half = true; hud(); halfSheet(); }]);
-    else if (e.t === 'ft') V.q.push([2.1, () => { SFX.whistle(3, true); const p = V.M.pso; V.ended = true; hud(); big(p ? 'Pênaltis' : 'Fim de jogo', p ? `${V.my.home ? p.sc[0] : p.sc[1]} × ${V.my.home ? p.sc[1] : p.sc[0]}` : `${V.shown[0]} × ${V.shown[1]}`, '#fff', true); }], [0, () => endMatchUI()]);
+    else if (e.t === 'sub') V.q.push(step(() => { tick(e.m, '🔁 ' + e.x); syncActors(); }, 0.4));
+    else if (e.t === 'ht') V.q.push(step(() => {
+      SFX.whistle(2, true); big('Intervalo', `${V.shown[0]} × ${V.shown[1]}`, '#fff', true); tick(null, 'Fim do primeiro tempo');
+      if (V.ball.mode !== 'air') dead(); V.scene = true;
+      for (const a of V.acts.values()) if (!a.gone && !a.leaving) a.go = { x: a.x * 0.9, y: a.y * 0.9, spd: SPD.walk };
+    }, 1.8), step(() => { V.block = true; V.half = true; hud(); halfSheet(); }));
+    else if (e.t === 'ft') V.q.push(step(() => {
+      SFX.whistle(3, true); const p = V.M.pso; V.ended = true; hud(); V.scene = true; if (V.ball.mode !== 'air') dead();
+      for (const a of V.acts.values()) if (!a.gone && !a.leaving) a.go = { x: a.x, y: a.y, spd: SPD.walk };
+      big(p ? 'Pênaltis' : 'Fim de jogo', p ? `${V.my.home ? p.sc[0] : p.sc[1]} × ${V.my.home ? p.sc[1] : p.sc[0]}` : `${V.shown[0]} × ${V.shown[1]}`, '#fff', true);
+    }, 2.1), step(() => endMatchUI()));
   }
   function engineStep() {
     const M = V.M;
@@ -747,16 +995,20 @@ const GL = (() => {
     const news = M.ev.slice(V.seen); V.seen = M.ev.length;
     hud();
     for (const e of news) handle(e);
-    if (!V.q.length && M.min % 4 === 0) { const want = R() < possOf(M) ? M.h : M.a; if (want !== V.poss) turnover(want); }
+    if (!V.q.length && M.min % 4 === 0) { const want = R() < possOf(M) ? M.h : M.a; if (!owns(want)) V.want = want; }
   }
   function direct(dt) {
     if (V.wait > 0) V.wait -= dt;
-    while (V.wait <= 0 && V.q.length && !V.block) { const s = V.q.shift(); V.wait += s[0]; s[1](); }
+    while (!V.block && V.q.length && V.wait <= 0) {
+      const s = V.q[0];
+      if (s.until && !s.until()) { s.tw = (s.tw || 0) + dt; if (s.tw < s.max) break; if (!s.soft) { V.dbg.to++; (V.dbg.l = V.dbg.l || []).push(String(s.until).slice(0, 60) + (s.info ? ' | ' + s.info() : '')); } }
+      V.q.shift(); V.wait += s.after || 0; if (s.fn) s.fn();
+    }
     if (V.q.length || V.wait > 0 || V.block || V.ended) return;
     if (V.scene) endScene();
+    if (V.ball.mode === 'dead') { const m = near(field(V.poss || V.my), V.ball); if (m) give(m); }
     V.minAcc += dt;
-    if (V.minAcc >= MIN) { V.minAcc -= MIN; engineStep(); if (V.q.length || V.block) return; }
-    openPlay(dt);
+    if (V.minAcc >= MIN) { V.minAcc -= MIN; engineStep(); }
   }
   function drawMini() {
     const el = $('#mini'), mg = el.getContext('2d'), w = 124, h = 192;
@@ -774,7 +1026,7 @@ const GL = (() => {
     requestAnimationFrame(frame);
     const dt = Math.min(0.05, (now - lastT) / 1000); lastT = now; T0 += dt;
     const paused = U.sheet || V.paused, sdt = paused ? 0 : dt * V.speed, b = V.ball;
-    if (sdt) { direct(sdt); simulate(sdt); }
+    if (sdt) { let r = sdt; while (r > 1e-6) { const h = Math.min(r, 1 / 40); direct(h); simulate(h); r -= h; } }
     for (const a of V.acts.values()) {
       if (a.gone) continue;
       const carrier = b.owner === a;
@@ -821,22 +1073,22 @@ const GL = (() => {
       for (const a of V.acts.values()) a.fig.dispose();
       V.acts.clear(); floats.splice(0).forEach(f => f.d.remove()); $('#ticker').innerHTML = '';
       const alt = o.alt;
-      Object.assign(V, { on: true, M, my, op, q: [], wait: 0, block: false, ended: false, scene: false, zoneY: null, minAcc: 0, passT: 0.4, shake: 0, seen: 0, shown: [0, 0], half: false, mood: 0, paused: false, home: my.home, speed: o.speed, kits: [kitFor(my.c, false), kitFor(op.c, alt)] });
-      V.ball = { x: 0, y: 0, z: 0, vx: 0, vy: 0, rot: 0, owner: null, mode: 'free', done: null };
+      Object.assign(V, { dbg: { to: 0 }, on: true, M, my, op, q: [], wait: 0, block: false, ended: false, scene: false, zoneY: null, minAcc: 0, want: null, poss: null, shake: 0, seen: 0, shown: [0, 0], half: false, mood: 0, paused: false, home: my.home, speed: o.speed, kits: [kitFor(my.c, false), kitFor(op.c, alt)] });
+      V.ball = { x: 0, y: 0, z: 0, vx: 0, vy: 0, rot: 0, owner: null, mode: 'dead', done: null, kicker: null, kickT: 0, pop: false };
       setFieldTheme(M.cup ? 'C' : my.c.div === 0 ? 'A' : 'B');
       for (const S of [my, op]) for (const e of S.on) if (!e.out) addActor(S, e, false);
       ballV.x = 0; ballV.y = 0; ballV.z = 0; ballV.vis = 0;
       resize(); hud();
       const f = fieldFit(); cam.cD = f.D * 1.1; cam.cx = 0; cam.cz = f.z; cam.ctilt = 0.1;
       big('Bola rolando', o.label, '#fff', true);
-      kickoff(my.home ? my : op);
+      V.q.push(...kickoff(my.home ? my : op));
       lastT = performance.now(); requestAnimationFrame(frame);
     },
     stop() { V.on = false; SFX.update(0.1, 0, false, 0); },
     resume() {
       if (!V.on) return;
       syncActors(); V.block = false;
-      if (V.half) { V.half = false; kickoff(V.my.home ? V.op : V.my); }
+      if (V.half) { V.half = false; V.q.unshift(...kickoff(V.my.home ? V.op : V.my)); }
     },
     sync: () => { if (V.on) syncActors(); },
     setSpeed(s) { V.speed = s; },

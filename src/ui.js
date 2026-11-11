@@ -35,16 +35,32 @@ function tags(p) {
   let t = '';
   if (p.inj) t += ` <span class="tag red">Lesão ${p.inj} sem</span>`;
   if (p.sus) t += ' <span class="tag red">Suspenso</span>';
-  if (p.list) t += ' <span class="tag blue">À venda</span>';
+  if (p.list) t += ` <span class="tag blue">À venda · ${money(p.list)}</span>`;
   if (p.prom) t += ' <span class="tag yel">Prometido</span>';
   if (p.jr) t += ' <span class="tag">Júnior</span>';
   return t;
 }
 function prow(p, o = {}) {
-  const sub = o.sub || `${POS[p.pos]} · ${p.age} anos${p.tr && knows(p) ? ' · ' + TRAITS[p.tr].n : ''}`;
+  const sub = o.sub || `${p.sp} · ${p.age} anos${p.tr && knows(p) ? ' · ' + TRAITS[p.tr].n : ''}`;
   const r = o.r != null ? o.r : `<span class="mini"><span>${Math.round(p.en)}</span>${bar(p.en, enCls(p.en))}</span>`;
-  return `<button class="prow ${o.off ? 'off' : ''}" data-a="${o.a || 'player'}" data-id="${p.id}" ${o.x || ''}>${o.m || pmag(p)}<span class="grow"><b>${esc(p.n)}${tags(p)}</b><small>${sub}</small></span>${r}</button>`;
+  return `<button class="prow ${o.off ? 'off' : ''} ${o.cls || ''}" data-a="${o.a || 'player'}" data-id="${p.id}" ${o.x || ''}>${o.m || pmag(p)}<span class="grow"><b>${esc(p.n)}${tags(p)}</b><small>${sub}</small></span>${r}</button>`;
 }
+const GROUP_N = ['Goleiros', 'Defensores', 'Meio-campistas', 'Atacantes'];
+const spIdx = p => SP_ORDER.indexOf(p.sp);
+// lista agrupada por setor; dentro do grupo, pela ordem das posições e depois por `key`
+function grouped(items, row, key, first) {
+  const P = x => (x.p || x);
+  let h = '';
+  const order = first != null ? [first, ...[0, 1, 2, 3].filter(g => g !== first)] : [0, 1, 2, 3];
+  for (const g of order) {
+    const l = items.filter(x => P(x).pos === g).sort((a, b) => spIdx(P(a)) - spIdx(P(b)) || key(b) - key(a));
+    if (l.length) h += `<div class="grp"><span>${GROUP_N[g]}</span><small>${l.length}</small></div>` + l.map(row).join('');
+  }
+  return h;
+}
+// titular: faixa amarela + posição no time
+function starterInfo(p) { const m = me(), k = m.lineup.indexOf(p.id); return k < 0 ? null : { k, code: codesOf(m)[k] }; }
+const xiPill = st => `<span class="xi">${st.code}</span>`;
 const seg = (k, opts, cls = '') => `<div class="seg ${cls}">${opts.map(([v, l]) => `<button class="${U.sub[k] === v ? 'on' : ''}" data-a="sub" data-k="${k}" data-v="${v}">${l}</button>`).join('')}</div>`;
 const kv = (k, v, cls = '') => `<div class="kv"><span>${k}</span><b class="${cls}">${v}</b></div>`;
 const ctrEnd = p => G.year + p.ctr - 1;
@@ -105,13 +121,19 @@ VIEW.home = () => {
 };
 
 // ---------- Time ----------
+function squadRow(p) {
+  const st = starterInfo(p);
+  if (st) { const at = Math.round(ovrAt(p, st.code)), d = at - ovr(p); return prow(p, { cls: 'st', sub: `${p.sp} · ${p.age} anos${d ? ` · ${at} como ${st.code} (${d})` : ''}`, r: `<span class="right">${xiPill(st)}<span class="mini"><span>${Math.round(p.en)}</span>${bar(p.en, enCls(p.en))}</span></span>` }); }
+  return prow(p, { off: !avail(p) });
+}
+const pcCls = (p, code) => { const k = fitKind(p, code); return k === 'same' || (p.tr === 'coringa' && k !== 'other') ? '' : k === 'near' ? 'near' : 'bad'; };
 function pitchV(c) {
-  const roles = rolesOf(c);
+  const codes = codesOf(c);
   let h = '';
   c.lineup.forEach((id, k) => {
     const p = pl(id); if (!p) return;
-    const r = roles[k], sp = c.spots[k], odd = r !== p.pos && p.tr !== 'coringa';
-    h += `<button class="slot" style="left:${sp.x}%;top:${sp.y}%" data-a="slot" data-k="${k}" aria-label="${esc(p.n)}, ${POS_N[r]}">${mag(r, Math.round(ovrIn(p, r)))}${odd ? '<span class="wr" title="Fora de posição">!</span>' : ''}<span class="nm">${esc(last(p.n))}</span><span class="en ${enCls(p.en)}"><i style="width:${p.en}%"></i></span></button>`;
+    const code = codes[k], r = SP[code].g, sp = c.spots[k], f = fitOf(p, code), at = Math.round(ovrAt(p, code));
+    h += `<button class="slot" style="left:${sp.x}%;top:${sp.y}%" data-a="slot" data-k="${k}" aria-label="${esc(p.n)}, ${SP[code].n}, nível ${at}"><span class="pc ${pcCls(p, code)}">${code}</span>${mag(r, at)}<span class="nm">${esc(last(p.n))}</span><span class="en ${enCls(p.en)}"><i style="width:${p.en}%"></i></span></button>`;
   });
   return `<div class="pitch v" id="board">${LINES_V}<i class="zone" style="top:${ZONE.ma}%"><em>Meio</em></i><i class="zone" style="top:${ZONE.dm}%"><em>Defesa</em></i><i class="zone first"><em>Ataque</em></i>${h}</div>`;
 }
@@ -121,14 +143,13 @@ VIEW.time = () => {
   let h = seg('time', [['esc', 'Escalação'], ['tat', 'Estilo'], ['tre', 'Treino']]);
   if (s === 'esc') {
     const pv = f ? preview(G.clubs[f.h], G.clubs[f.a]) : null, my = pv ? (f.home ? pv.h : pv.a) : null;
-    const rest = m.players.filter(p => !m.lineup.includes(p.id)), ok = rest.filter(avail).sort((a, b) => ovr(b) - ovr(a)), out = rest.filter(p => !avail(p));
+    const nRes = m.players.length - 11;
     const fam = famNow(m), custom = !PRESETS.includes(m.form);
     h += pitchV(m);
     h += `<div class="chips scroll">${PRESETS.map(k => `<button class="chip board ${m.form === k ? 'on' : ''}" data-a="form" data-v="${k}">${k}</button>`).join('')}${custom ? `<span class="chip on">${m.form}</span>` : ''}</div>`;
     h += `<div class="strip">${my ? `<div><b class="num">${Math.round(0.7 * my.def + 0.3 * my.gk)}</b><small>Defesa</small></div><div><b class="num">${Math.round(my.mid)}</b><small>Meio</small></div><div><b class="num">${Math.round(my.atk)}</b><small>Ataque</small></div>` : ''}<div><b class="num">${Math.round(fam)}%</b><small>Entrosamento</small></div><button class="btn sm yel" data-a="auto">Melhor time</button></div>`;
-    h += `<p class="hint">Arraste os ímãs para ajustar o desenho. Toque num ímã para trocar o jogador.${fam < m.fam ? ` Mudar de linha custa entrosamento: ${Math.round(m.fam)}% vira ${Math.round(fam)}% neste jogo.` : ''}</p>`;
-    h += `<div class="card flat"><div class="head pad"><h2><span>Reservas</span></h2><small>${m.players.length} no elenco</small></div>${ok.map(p => prow(p)).join('') || '<p class="muted pad">Sem reservas disponíveis.</p>'}</div>`;
-    if (out.length) h += `<div class="card flat"><div class="head pad"><h2><span>Fora de combate</span></h2></div>${out.map(p => prow(p, { off: 1 })).join('')}</div>`;
+    h += `<p class="hint">Toque num ímã para abrir o menu do jogador. Pressione e arraste para mudar a posição. Sigla amarela: jogador adaptado; vermelha: improvisado. Fora da posição de origem o nível cai.${fam < m.fam ? ` Mudar de linha custa entrosamento: ${Math.round(m.fam)}% vira ${Math.round(fam)}% neste jogo.` : ''}</p>`;
+    h += `<div class="card flat"><div class="head pad"><h2><span>Elenco</span></h2><small><span class="xi">XI</span> 11 titulares · ${nRes} reservas</small></div>${grouped(m.players, squadRow, ovr)}</div>`;
   } else if (s === 'tat') {
     const o = f && f.opp, fam = famNow(m);
     h += `<div class="card stack"><div class="head"><h2><span>Entrosamento</span></h2><b class="num">${Math.round(fam)}%</b></div><div class="meter ${fam < 45 ? 'low' : fam >= 80 ? 'good' : ''}"><i style="width:${fam}%"></i></div><p class="muted">Vale de −6% a +2% em todos os setores. Sobe a cada jogo e com treino tático. Cada jogador que muda de linha custa 8 pontos; trocar o estilo custa 22%.</p>${o ? `<p class="hand">O ${esc(o.name)} joga no ${o.form}, ${STYLES[o.style].n.toLowerCase()}.</p>` : ''}</div>`;
@@ -143,22 +164,36 @@ VIEW.time = () => {
 };
 
 // ---------- Mercado ----------
+const SORTS = { lvl: ['Nível', x => estOvr(x.p)], price: ['Preço', x => -x.p.ask], age: ['Idade', x => -x.p.age] };
+function buyRow(x) {
+  const p = x.p, c = x.c, open = windowOpen(), w = G.watch.includes(p.id);
+  return prow(p, { off: c && !open, sub: `${p.sp} · ${p.age} anos · ${c ? esc(c.name) : 'sem clube'}${w ? ' · ★' : ''}`, r: `<span class="right"><span class="val num">${money(p.ask)}</span><small class="muted" style="display:block">${c ? (G.market.includes(p.id) ? 'à venda' : 'pedida') : 'luvas'}</small></span>` });
+}
 VIEW.merc = () => {
   const m = me(), s = U.sub.merc, open = windowOpen();
-  let h = seg('merc', [['buy', 'Contratar'], ['sell', 'Meu elenco'], ['base', 'Base']]);
+  let h = seg('merc', [['buy', 'Contratar'], ['sell', 'Vender'], ['base', 'Base'], ['hist', 'Histórico']]);
   if (s === 'buy') {
-    h += `<div class="chips">${open ? '<span class="chip ok">Janela aberta</span>' : '<span class="chip warn">Janela fechada: só jogadores sem clube</span>'}<span class="chip board">Olheiros em campo: ${G.scoutQ.length}/${1 + G.fac.olh}</span><span class="chip board">Elenco ${m.players.length}/${SQUAD_MAX}</span></div>`;
-    h += `<div class="chips">${[[-1, 'Todos'], [0, 'GOL'], [1, 'DEF'], [2, 'MEI'], [3, 'ATA']].map(([v, l]) => `<button class="chip ${U.filt === v ? 'on' : ''}" data-a="filt" data-v="${v}">${l}</button>`).join('')}</div>`;
-    const list = [...G.free.map(p => [p, null]), ...G.market.map(id => [pl(id), clubOf(id)]).filter(x => x[0] && x[1] && x[1].id)].filter(x => U.filt < 0 || x[0].pos === U.filt).sort((a, b) => estOvr(b[0]) - estOvr(a[0]));
-    h += `<div class="card flat">${list.map(([p, c]) => { prepAsk(p); return prow(p, { off: c && !open, sub: `${POS[p.pos]} · ${p.age} anos · ${c ? esc(c.name) : 'sem clube'}`, r: `<span class="right"><span class="val num">${money(p.ask)}</span><small class="muted" style="display:block">${c ? 'pedida' : 'luvas'}</small></span>` }); }).join('') || '<p class="muted pad">Ninguém nessa posição agora.</p>'}</div>`;
-    h += '<p class="hint">Faixas como 58–66 são estimativas: mande um olheiro para ver o nível exato. Em Tabelas dá para abrir qualquer clube e propor por quem não está à venda.</p>';
+    h += `<div class="chips">${open ? '<span class="chip ok">Janela aberta</span>' : '<span class="chip warn">Janela fechada: só sem clube</span>'}<span class="chip board">Olheiros ${G.scoutQ.length}/${1 + G.fac.olh}</span><span class="chip board">Elenco ${m.players.length}/${SQUAD_MAX}</span></div>`;
+    h += `<div class="rowx"><div class="chips grow">${[[-1, 'Todos'], [0, 'GOL'], [1, 'DEF'], [2, 'MEI'], [3, 'ATA']].map(([v, l]) => `<button class="chip ${U.filt === v ? 'on' : ''}" data-a="filt" data-v="${v}">${l}</button>`).join('')}</div></div>`;
+    h += `<div class="seg">${Object.keys(SORTS).map(k => `<button class="${(U.sort || 'lvl') === k ? 'on' : ''}" data-a="sort" data-v="${k}">${SORTS[k][0]}</button>`).join('')}</div>`;
+    const watch = G.watch.map(id => pl(id)).filter(p => p && !isMine(p)).map(p => ({ p, c: clubOf(p.id) }));
+    watch.forEach(x => prepAsk(x.p));
+    if (watch.length) h += `<div class="card flat"><div class="head pad"><h2><span>Na mira</span></h2><small>${watch.length} observado${watch.length > 1 ? 's' : ''}</small></div>${watch.map(buyRow).join('')}</div>`;
+    const items = [...G.free.map(p => ({ p, c: null })), ...G.market.map(id => ({ p: pl(id), c: clubOf(id) })).filter(x => x.p && x.c && x.c.id)].filter(x => (U.filt < 0 || x.p.pos === U.filt) && !G.watch.includes(x.p.id));
+    items.forEach(x => prepAsk(x.p));
+    h += `<div class="card flat">${grouped(items, buyRow, SORTS[U.sort || 'lvl'][1]) || '<p class="muted pad">Ninguém nessa posição agora.</p>'}</div>`;
+    h += '<p class="hint">Faixas como 58–66 são estimativas: mande um olheiro para ver o nível exato. Marque ★ para acompanhar um jogador. Em Tabelas dá para abrir qualquer clube e propor por quem não está à venda.</p>';
   } else if (s === 'sell') {
-    const list = m.players.slice().sort((a, b) => valueOf(b) - valueOf(a));
-    h += `<div class="card"><div>${kv('Folha salarial', money(wageBill()) + ' por semana')}${kv('Contratos que acabam este ano', m.players.filter(p => p.ctr <= 1).length)}</div><p class="muted" style="margin-top:6px">Abra a ficha para renovar, pôr à venda ou dispensar.</p></div>`;
-    h += `<div class="card flat">${list.map(p => prow(p, { sub: `${POS[p.pos]} · ${p.age} anos · ${money(p.w)}/sem · até ${ctrEnd(p)}${p.ctr <= 1 ? ' <span class="tag yel">acaba</span>' : ''}`, r: `<span class="val num">${money(valueOf(p))}</span>` })).join('')}</div>`;
-  } else {
+    const listed = m.players.filter(p => p.list);
+    h += `<div class="card"><div>${kv('Folha salarial', money(wageBill()) + ' por semana')}${kv('Anunciados', listed.length ? `${listed.length} · ${money(listed.reduce((t, p) => t + p.list, 0))}` : 'nenhum')}${kv('Contratos que acabam este ano', m.players.filter(p => p.ctr <= 1).length)}</div><p class="muted" style="margin-top:6px">Toque num jogador para anunciar, vender na hora, renovar ou dispensar. Propostas chegam com a janela aberta; quanto mais perto do valor de mercado, mais rápido.</p></div>`;
+    h += `<div class="card flat">${grouped(m.players, p => { const st = starterInfo(p); return prow(p, { a: 'sell', cls: st ? 'st' : '', sub: `${p.sp} · ${p.age} anos · ${money(p.w)}/sem · até ${ctrEnd(p)}${p.ctr <= 1 ? ' <span class="tag yel">acaba</span>' : ''}`, r: `<span class="right">${st ? xiPill(st) : ''}<span class="val num">${money(valueOf(p))}</span></span>` }); }, valueOf)}</div>`;
+  } else if (s === 'base') {
     h += '<p class="hint">A peneira revela 3 garotos por temporada. Quem não for promovido vai embora no fim do ano.</p>';
-    h += G.youth.map(p => `<div class="card stack"><div class="rowx">${pmag(p)}<div class="grow"><b>${esc(p.n)}</b><div class="muted">${POS_N[p.pos]} · ${p.age} anos${p.tr ? ' · ' + TRAITS[p.tr].n : ''}</div></div><div class="right">${stars(p.pot)}<div class="muted">potencial ${p.pot}</div></div></div><div class="btns"><button class="btn sm" data-a="promote" data-id="${p.id}">Promover (R$ 1 mil/sem)</button><button class="btn ghost sm" data-a="player" data-id="${p.id}">Ficha</button><button class="btn ghost sm" data-a="dismiss" data-id="${p.id}">Dispensar</button></div></div>`).join('') || '<div class="card"><p class="hand">Ninguém na base agora. A próxima peneira é no começo da temporada.</p></div>';
+    h += G.youth.map(p => `<div class="card stack"><div class="rowx">${pmag(p)}<div class="grow"><b>${esc(p.n)}</b><div class="muted">${SP[p.sp].n} · ${p.age} anos${p.tr ? ' · ' + TRAITS[p.tr].n : ''}</div></div><div class="right">${stars(p.pot)}<div class="muted">potencial ${p.pot}</div></div></div><div class="btns"><button class="btn sm" data-a="promote" data-id="${p.id}">Promover (R$ 1 mil/sem)</button><button class="btn ghost sm" data-a="player" data-id="${p.id}">Ficha</button><button class="btn ghost sm" data-a="dismiss" data-id="${p.id}">Dispensar</button></div></div>`).join('') || '<div class="card"><p class="hand">Ninguém na base agora. A próxima peneira é no começo da temporada.</p></div>';
+  } else {
+    const yr = G.tx.filter(t => t.y === G.year), inn = yr.filter(t => t.t === 'in').reduce((a, t) => a + t.fee, 0), out = yr.filter(t => t.t === 'out').reduce((a, t) => a + t.fee, 0);
+    h += `<div class="card"><div class="head"><h2><span>${G.year}</span></h2></div>${kv('Gasto em contratações', money(inn), 'neg')}${kv('Arrecadado com vendas', money(out), 'pos')}${kv('Saldo', money(out - inn), out >= inn ? 'pos' : 'neg')}</div>`;
+    h += `<div class="card flat">${G.tx.map(t => `<div class="txr"><span class="txk ${t.t}">${t.t === 'in' ? 'Chegou' : t.t === 'out' ? 'Saiu' : 'Dispensa'}</span><div class="grow"><b>${esc(t.n)}</b><small>${t.sp} · ${t.o} · ${t.age} anos · ${t.t === 'in' ? 'de ' : t.t === 'out' ? 'para o ' : ''}${esc(t.club)} · ${t.y}</small></div><b class="num ${t.t === 'out' ? 'pos' : 'neg'}">${t.t === 'out' ? '+' : '−'}${money(t.fee)}</b></div>`).join('') || '<p class="muted pad">Nenhuma transferência ainda.</p>'}</div>`;
   }
   return h;
 };
@@ -217,7 +252,7 @@ VIEW.tab = () => {
     h += CUP_N.map((n, r) => `<div class="card flat"><div class="head pad"><h2><span>${n}</span></h2></div>${G.cup.rounds[r] ? G.cup.rounds[r].map(t => fxRow(t.h, t.a, t.w != null ? [t.gh, t.ga] : null, t.pso)).join('') : '<p class="muted pad">A definir.</p>'}</div>`).join('');
   } else if (s === 'art') {
     const top = G.clubs.filter(c => c.div === U.div).flatMap(c => c.players.map(p => [p, c])).filter(x => x[0].gl > 0).sort((a, b) => b[0].gl - a[0].gl || a[0].ap - b[0].ap).slice(0, 15);
-    h += divSeg + `<div class="card flat">${top.map(([p, c], i) => prow(p, { m: `<span class="mag rank">${i + 1}º</span>`, sub: `${esc(c.name)} · ${POS[p.pos]}`, r: `<span class="val num">${p.gl}</span>` })).join('') || '<p class="muted pad">Ainda sem gols na temporada.</p>'}</div>`;
+    h += divSeg + `<div class="card flat">${top.map(([p, c], i) => prow(p, { m: `<span class="mag rank">${i + 1}º</span>`, sub: `${esc(c.name)} · ${p.sp}`, r: `<span class="val num">${p.gl}</span>` })).join('') || '<p class="muted pad">Ainda sem gols na temporada.</p>'}</div>`;
   } else {
     h += `<div class="card flat">${myGames().map(g => { if (!g.f) return `<div class="fx"><span class="muted">${g.e.t === 'C' ? CUP_N[g.e.r] : ''}</span><b>—</b><span class="muted">${g.i < G.ci ? 'eliminado' : 'se avançar'}</span></div>`; return `<div style="${g.i === G.ci ? 'box-shadow:inset 5px 0 0 var(--magnet)' : ''}"><div class="muted" style="padding:8px 14px 0;font-size:11.5px;font-weight:800;letter-spacing:.06em;text-transform:uppercase">${g.e.t === 'L' ? 'Rodada ' + (g.e.r + 1) : 'Copa · ' + CUP_N[g.e.r]}</div>${fxRow(g.f[0], g.f[1], g.r ? [g.r[2], g.r[3]] : null, g.r && g.r[4]).replace('class="fx me"', 'class="fx" style="border:0;padding-top:2px"')}</div>`; }).join('')}</div>`;
   }
@@ -230,14 +265,15 @@ function closeSheet() {
   $('#sheet').classList.remove('on'); U.sheet = false; U.neg = null; U.subOut = null;
   const M = U.M;
   if (M && !M.done) {
-    if (M.pend) { const { S, o } = M.pend; if (!doSub(M, S, o, bestSub(S, o.role))) { o.out = true; o.t1 = M.min; } M.pend = null; if (!U.gl) drawDots(); }
+    if (M.pend) { const { S, o } = M.pend; if (!doSub(M, S, o, bestSub(S, o.code))) { o.out = true; o.t1 = M.min; } M.pend = null; if (!U.gl) drawDots(); }
     if (U.gl) GL.resume(); else if (!U.paused) schedule(350);
   }
 }
 function playerSheet(p) {
   const mine = isMine(p), youth = G.youth.includes(p), c = clubOf(p.id), k = knows(p), m = me();
   const keys = p.pos === 0 ? ['g'] : ['d', 'm', 'a'];
-  let h = `<div class="rowx" style="margin-bottom:12px;padding-right:36px">${pmag(p, 'big')}<div class="grow"><h2>${esc(p.n)}</h2><div class="muted">${POS_N[p.pos]} · ${p.age} anos · ${mine ? esc(m.name) : youth ? 'base' : c ? esc(c.name) : 'sem clube'}</div>${k ? `<div>${stars(p.pot)} <span class="muted">potencial ${p.pot}</span></div>` : ''}</div></div><div class="stack">`;
+  const st = mine ? starterInfo(p) : null;
+  let h = `<div class="rowx" style="margin-bottom:12px;padding-right:36px">${pmag(p, 'big')}<div class="grow"><h2>${esc(p.n)}</h2><div class="muted">${SP[p.sp].n} (${p.sp}) · ${p.age} anos · ${mine ? esc(m.name) : youth ? 'base' : c ? esc(c.name) : 'sem clube'}</div>${st ? `<div>${xiPill(st)} <span class="muted">titular${st.code !== p.sp ? `, jogando de ${SP[st.code].n.toLowerCase()} (${Math.round(ovrAt(p, st.code))})` : ''}</span></div>` : ''}${k ? `<div>${stars(p.pot)} <span class="muted">potencial ${p.pot}</span></div>` : ''}</div></div><div class="stack">`;
   if (k) h += `<div class="stack" style="gap:6px">${keys.map(x => `<div class="attr"><span>${ATTR_N[x]}</span>${bar(p[x])}<b>${p[x]}</b></div>`).join('')}</div>`;
   else h += `<p class="hand">Nível estimado entre ${ovrRange(p).join(' e ')}. Atributos e potencial só com relatório de olheiro.</p>`;
   if (p.tr && k) h += `<p><span class="tag yel">${TRAITS[p.tr].n}</span> <span class="muted">${TRAITS[p.tr].d}</span></p>`;
@@ -245,31 +281,64 @@ function playerSheet(p) {
   h += `<div>${kv('Temporada', `${plural(p.ap, 'jogo', 'jogos')} · ${plural(p.gl, 'gol', 'gols')} · ${p.as} assist.`)}${kv('Valor de mercado', k ? money(valueOf(p)) : 'a avaliar')}${mine || c ? kv('Salário', money(p.w) + ' por semana') : ''}${mine ? kv('Contrato', 'até o fim de ' + ctrEnd(p)) : ''}</div>`;
   if (p.inj) h += `<p class="hand red">Lesionado: volta em ${plural(p.inj, 'semana', 'semanas')}.</p>`;
   if (p.sus) h += '<p class="hand red">Suspenso no próximo jogo.</p>';
-  if (mine) h += `<div class="btns"><button class="btn" data-a="renewSheet" data-id="${p.id}">Renovar</button><button class="btn ghost" data-a="list" data-id="${p.id}">${p.list ? 'Tirar da lista de vendas' : 'Pôr à venda'}</button><button class="btn ghost" data-a="release" data-id="${p.id}">Dispensar</button></div>`;
+  if (k && p.pos > 0) h += `<div><label>Rende em outras posições</label><div class="fitrow">${SP_ORDER.filter(x => SP[x].g > 0).map(x => { const v = Math.round(ovrAt(p, x)), f = fitKind(p, x); return `<span class="${f}"><b>${x}</b>${v}</span>`; }).join('')}</div></div>`;
+  if (mine) h += `<div class="btns"><button class="btn" data-a="place" data-id="${p.id}">${st ? 'Mudar de posição' : 'Escalar'}</button><button class="btn ghost" data-a="sell" data-id="${p.id}">${p.list ? 'Venda' : 'Vender'}</button><button class="btn ghost" data-a="renewSheet" data-id="${p.id}">Renovar</button><button class="btn ghost" data-a="release" data-id="${p.id}">Dispensar</button></div>`;
   else if (youth) h += `<div class="btns"><button class="btn" data-a="promote" data-id="${p.id}">Promover ao elenco</button><button class="btn ghost" data-a="dismiss" data-id="${p.id}">Dispensar</button></div>`;
-  else h += `<div class="btns">${k ? '' : `<button class="btn ghost" data-a="scout" data-id="${p.id}" ${G.scoutQ.includes(p.id) ? 'disabled' : ''}>${G.scoutQ.includes(p.id) ? 'Olheiro a caminho' : 'Mandar olheiro'}</button>`}<button class="btn" data-a="neg" data-id="${p.id}">Negociar</button></div>`;
+  else h += `<div class="btns">${k ? '' : `<button class="btn ghost" data-a="scout" data-id="${p.id}" ${G.scoutQ.includes(p.id) ? 'disabled' : ''}>${G.scoutQ.includes(p.id) ? 'Olheiro a caminho' : 'Mandar olheiro'}</button>`}<button class="btn ghost" data-a="watch" data-id="${p.id}">${G.watch.includes(p.id) ? '★ Observando' : '☆ Observar'}</button><button class="btn" data-a="neg" data-id="${p.id}">Negociar</button></div>`;
   openSheet(h + '</div>');
 }
+const chTxt = v => `<span class="ch c${v}">${CH[v]}</span>`;
 function negSheet() {
   const N = U.neg, p = pl(N.pid), c = clubOf(p.id);
   prepAsk(p);
-  const fmin = round5(p.ask * 0.6), fmax = round5(p.ask * 1.3), wmin = Math.max(1, Math.floor(p.wask * 0.6)), wmax = Math.ceil(p.wask * 1.5) + 1;
-  openSheet(`<div class="rowx" style="margin-bottom:12px;padding-right:36px">${pmag(p, 'big')}<div class="grow"><h2>${esc(p.n)}</h2><div class="muted">${POS_N[p.pos]} · ${p.age} anos · ${c ? esc(c.name) : 'sem clube'}</div></div></div><div class="stack">
-    ${c ? `<div><label for="negFee">Oferta ao clube</label><div class="rowx"><input type="range" id="negFee" min="${fmin}" max="${fmax}" step="5" value="${N.fee}"><b class="num" id="negFeeV" style="min-width:96px;text-align:right">${money(N.fee)}</b></div><div class="muted">Pedida: ${money(p.ask)}. Eles podem aceitar um pouco menos.</div></div>` : `<div>${kv('Luvas na assinatura', money(p.ask))}</div>`}
-    <div><label for="negWage">Salário por semana</label><div class="rowx"><input type="range" id="negWage" min="${wmin}" max="${wmax}" step="1" value="${N.wage}"><b class="num" id="negWageV" style="min-width:96px;text-align:right">${money(N.wage)}</b></div><div class="muted">Ele pede ${money(p.wask)}. Sua folha hoje: ${money(wageBill())}.</div></div>
+  const fmin = round5(p.ask * 0.6), fmax = round5(p.ask * 1.3), wmin = Math.max(1, Math.floor(p.wask * 0.6)), wmax = Math.ceil(p.wask * 1.5) + 1, ch = bidChance(p, N.fee, N.wage), fee = c ? N.fee : p.ask;
+  openSheet(`<div class="rowx" style="margin-bottom:12px;padding-right:36px">${pmag(p, 'big')}<div class="grow"><h2>${esc(p.n)}</h2><div class="muted">${SP[p.sp].n} · ${p.age} anos · ${c ? esc(c.name) : 'sem clube'}</div></div></div><div class="stack">
+    <div>${kv('Valor de mercado', knows(p) ? money(valueOf(p)) : 'a avaliar')}${c ? kv(G.market.includes(p.id) ? 'Pedida (está à venda)' : 'Pedida (não está à venda)', money(p.ask)) : ''}</div>
+    ${c ? `<div><label for="negFee">Oferta ao clube <span id="chFee">${chTxt(ch.fee)}</span></label><div class="rowx"><input type="range" id="negFee" min="${fmin}" max="${fmax}" step="5" value="${N.fee}"><b class="num" id="negFeeV" style="min-width:96px;text-align:right">${money(N.fee)}</b></div></div>` : `<div>${kv('Luvas na assinatura', money(p.ask))}</div>`}
+    <div><label for="negWage">Salário por semana <span id="chWage">${chTxt(ch.wage)}</span></label><div class="rowx"><input type="range" id="negWage" min="${wmin}" max="${wmax}" step="1" value="${N.wage}"><b class="num" id="negWageV" style="min-width:96px;text-align:right">${money(N.wage)}</b></div><div class="muted">Ele pede ${money(p.wask)}.</div></div>
     <div><label>Contrato</label><div class="seg inpaper">${[1, 2, 3, 4].map(y => `<button class="${N.yrs === y ? 'on' : ''}" data-a="negY" data-v="${y}">${plural(y, 'ano', 'anos')}</button>`).join('')}</div></div>
+    <div id="negSum">${negSum(fee, N.wage)}</div>
     ${N.msg ? `<p class="hand ${N.ok ? 'ok' : 'red'}">${esc(N.msg)}</p>` : ''}
-    <button class="btn wide" data-a="negSend">Enviar proposta</button><div class="muted">Em caixa: ${money(G.money)}.</div></div>`);
+    <button class="btn wide" data-a="negSend">Enviar proposta</button></div>`);
+}
+const negSum = (fee, wage) => kv('Caixa depois', money(G.money - fee), G.money - fee < 0 ? 'neg' : '') + kv('Folha depois', money(wageBill() + wage) + ' por semana');
+function sellSheet(p) {
+  const v = valueOf(p), price = U.ask != null ? U.ask : p.list || round5(v * 1.1), open = windowOpen(), q = quickPrice(p), odds = clamp(1.3 - 0.75 * (price / v), 0.04, 0.85), st = starterInfo(p);
+  openSheet(`<div class="rowx" style="margin-bottom:12px;padding-right:36px">${pmag(p, 'big')}<div class="grow"><h2>${esc(p.n)}</h2><div class="muted">${SP[p.sp].n} · ${p.age} anos${st ? ' · titular' : ''}</div></div></div><div class="stack">
+    <div>${kv('Valor de mercado', money(v))}${kv('Salário', money(p.w) + ' por semana')}${kv('Contrato', 'até o fim de ' + ctrEnd(p))}</div>
+    <div><label for="askP">Preço pedido</label><div class="rowx"><input type="range" id="askP" min="${round5(v * 0.5)}" max="${round5(v * 2)}" step="5" value="${price}"><b class="num" id="askV" style="min-width:96px;text-align:right">${money(price)}</b></div>
+    <div class="muted" id="askOdds">${oddsTxt(odds, price / v)}</div></div>
+    <div class="btns"><button class="btn" data-a="listOk" data-id="${p.id}">${p.list ? 'Atualizar anúncio' : 'Anunciar'}</button>${p.list ? `<button class="btn ghost" data-a="unlist" data-id="${p.id}">Tirar do mercado</button>` : ''}</div>
+    <div class="card" style="box-shadow:none;background:var(--raise)"><b>Venda rápida</b><p class="muted" style="margin:4px 0 10px">Um clube interessado paga ${money(q)} na hora (72% do valor).${open ? '' : ' Só com a janela aberta.'}</p><button class="btn ghost sm" data-a="quick" data-id="${p.id}" ${open ? '' : 'disabled'}>Vender agora por ${money(q)}</button></div>
+    <div class="btns"><button class="btn ghost sm" data-a="player" data-id="${p.id}">Ver ficha</button><button class="btn ghost sm" data-a="release" data-id="${p.id}">Dispensar (${money(p.w * 6)})</button></div></div>`);
+}
+const oddsTxt = (o, r) => `${Math.round(r * 100)}% do valor · chance de proposta por semana: <b>${o >= 0.6 ? 'alta' : o >= 0.3 ? 'média' : 'baixa'}</b>`;
+// menu do jogador no quadro
+function slotMenu(k) {
+  const m = me(), code = codesOf(m)[k], p = pl(m.lineup[k]); if (!p) return pickSheet(k);
+  const at = Math.round(ovrAt(p, code)), d = at - ovr(p), g = SP[code].g;
+  const alt = m.players.filter(x => x !== p && avail(x)).sort((a, b) => ovrAt(b, code) - ovrAt(a, code)).slice(0, 3);
+  openSheet(`<div class="rowx" style="margin-bottom:12px;padding-right:36px">${mag(g, at, 'big')}<div class="grow"><h2>${esc(p.n)}</h2><div class="muted">${SP[code].n} no time · natural: ${p.sp}</div><div class="${d < 0 ? 'hand red' : 'hand ok'}" style="font-size:19px">${d < 0 ? `Fora de posição: ${at} em vez de ${ovr(p)} (${d})` : 'Na posição de origem'}</div></div></div><div class="stack">
+    <div class="stat3"><div><b class="num">${Math.round(p.en)}</b><small>Energia</small></div><div><b class="num">${Math.round(p.mo)}</b><small>Moral</small></div><div><b class="num">${p.h.length ? formOf(p).toFixed(1).replace('.', ',') : '—'}</b><small>Nota média</small></div></div>
+    <h3>Melhores opções para ${code}</h3><div class="card flat" style="box-shadow:none;background:var(--raise)">${alt.map(x => { const j = m.lineup.indexOf(x.id); return prow(x, { a: 'put', x: `data-k="${k}"`, m: mag(g, Math.round(ovrAt(x, code))), sub: `${x.sp} · ${j >= 0 ? 'titular (troca de lugar)' : 'reserva'}` }); }).join('')}</div>
+    <div class="btns"><button class="btn" data-a="pick" data-k="${k}">Ver todos</button><button class="btn ghost" data-a="player" data-id="${p.id}">Ficha completa</button></div>
+    <p class="muted">Para mover o jogador no campo, pressione o ímã e arraste.</p></div>`);
+}
+// escolher em que lugar do time o jogador entra
+function placeSheet(p) {
+  const m = me(), codes = codesOf(m);
+  openSheet(`<h2 style="padding-right:36px">Escalar ${esc(last(p.n))}</h2><p class="muted" style="margin:4px 0 10px">O número da esquerda é o nível dele em cada posição; à direita, quem joga lá hoje.</p><div class="card flat" style="box-shadow:none;background:var(--raise)">${m.lineup.map((id, k) => { const q = pl(id), code = codes[k], at = Math.round(ovrAt(p, code)), cur = q ? Math.round(ovrAt(q, code)) : 0; return `<button class="prow" data-a="put" data-k="${k}" data-id="${p.id}" ${q === p ? 'disabled' : ''}>${mag(SP[code].g, at)}<span class="grow"><b>${code} · ${SP[code].n}</b><small>${q === p ? 'posição atual' : q ? `hoje: ${esc(q.n)} (${cur})` : 'vaga'}</small></span><span class="tag ${at > cur ? 'ok' : at < cur ? 'red' : ''}">${at > cur ? '+' : ''}${at - cur}</span></button>`; }).join('')}</div>`);
 }
 function clubSheet(c) {
-  const list = c.players.slice().sort((a, b) => estOvr(b) - estOvr(a));
-  openSheet(`<div class="rowx" style="margin-bottom:10px;padding-right:36px">${crest(c, 52)}<div class="grow"><h2>${esc(c.name)}</h2><div class="muted">${DIV_N[c.div]} · ${posOf(c)}º · ${c.form} · ${STYLES[c.style].n}</div><div>${formDots(c)}</div></div></div><div class="card flat" style="box-shadow:none;background:var(--raise)">${list.map(p => prow(p, { r: c.id ? '' : undefined })).join('')}</div>`);
+  const xi = new Set(c.lineup);
+  openSheet(`<div class="rowx" style="margin-bottom:10px;padding-right:36px">${crest(c, 52)}<div class="grow"><h2>${esc(c.name)}</h2><div class="muted">${DIV_N[c.div]} · ${posOf(c)}º · ${c.form} · ${STYLES[c.style].n}</div><div>${formDots(c)}</div></div></div><div class="card flat" style="box-shadow:none;background:var(--raise)">${grouped(c.players, p => (c.id === 0 ? squadRow(p) : prow(p, { cls: xi.has(p.id) ? 'st' : '', r: xi.has(p.id) ? '<span class="xi">XI</span>' : '' })), estOvr)}</div>`);
 }
 function pickSheet(k) {
-  const m = me(), role = rolesOf(m)[k], cur = pl(m.lineup[k]);
-  const sc = p => ovrIn(p, role) * (0.8 + 0.2 * p.en / 100);
-  const list = m.players.filter(p => p !== cur).sort((a, b) => avail(b) - avail(a) || sc(b) - sc(a));
-  openSheet(`<h2 style="padding-right:36px">${POS_N[role]}</h2><p class="muted" style="margin:4px 0 10px">O número mostra o nível do jogador nesta função.</p>${cur ? `<div class="card flat" style="box-shadow:none;background:var(--hl);margin-bottom:10px">${prow(cur, { m: mag(role, Math.round(ovrIn(cur, role))), sub: `Titular agora · natural: ${POS[cur.pos]} · toque para ver a ficha` })}</div>` : ''}<div class="card flat" style="box-shadow:none;background:var(--raise)">${list.map(p => { const j = m.lineup.indexOf(p.id); return prow(p, { a: avail(p) ? 'put' : 'none', x: `data-k="${k}"`, off: !avail(p), m: mag(role, Math.round(ovrIn(p, role))), sub: `${POS[p.pos]}${p.pos !== role && p.tr !== 'coringa' ? ' (improvisado)' : ''} · ${p.age} anos · ${j >= 0 ? 'titular, troca de lugar' : 'reserva'}` }); }).join('')}</div>`);
+  const m = me(), code = codesOf(m)[k], g = SP[code].g, cur = pl(m.lineup[k]);
+  const sc = p => ovrAt(p, code) * (0.8 + 0.2 * p.en / 100);
+  const list = m.players.filter(p => p !== cur);
+  const row = p => { const j = m.lineup.indexOf(p.id), f = fitKind(p, code); return prow(p, { a: avail(p) ? 'put' : 'none', x: `data-k="${k}"`, off: !avail(p), cls: j >= 0 ? 'st' : '', m: mag(g, Math.round(ovrAt(p, code))), sub: `${p.sp}${f !== 'same' ? ` <span class="tag ${f === 'near' ? 'yel' : 'red'}">${f === 'near' ? 'adaptado' : 'improvisado'}</span>` : ''} · ${j >= 0 ? 'titular, troca de lugar' : 'reserva'}` }); };
+  openSheet(`<h2 style="padding-right:36px">${code} · ${SP[code].n}</h2><p class="muted" style="margin:4px 0 10px">O número mostra o nível de cada um nesta posição.</p>${cur ? `<div class="card flat" style="box-shadow:none;background:var(--hl);margin-bottom:10px">${prow(cur, { m: mag(g, Math.round(ovrAt(cur, code))), sub: `Titular agora · natural: ${cur.sp} · toque para ver a ficha` })}</div>` : ''}<div class="card flat" style="box-shadow:none;background:var(--raise)">${grouped(list, row, sc, g)}</div>`);
 }
 function confirmSheet(title, text, act, v, label, cls = '') { openSheet(`<h2 style="padding-right:36px">${title}</h2><p style="margin:10px 0 14px">${text}</p><div class="btns"><button class="btn ${cls}" data-a="${act}" data-v="${v}">${label}</button><button class="btn ghost" data-a="close">Cancelar</button></div>`); }
 
@@ -366,16 +435,16 @@ function boardSheet() {
   const M = U.M, S = U.my, act = S.on.map((o, i) => [o, i]).filter(x => !x[0].out), left = 5 - S.subs;
   let h = `<h2 style="padding-right:36px"><span>Prancheta</span> · ${M.min}'</h2><div class="stack" style="margin-top:10px"><div><label>Postura</label><div class="seg inpaper">${Object.keys(MENT).map(k => `<button class="${S.ment === k ? 'on' : ''}" data-a="mMent" data-v="${k}">${MENT[k].n}</button>`).join('')}</div><p class="muted" style="margin-top:4px">${MENT[S.ment].d}.</p></div>`;
   if (U.subOut != null) {
-    const o = S.on[U.subOut], b = benchOf(S).sort((x, y) => ovrIn(y, o.role) - ovrIn(x, o.role));
-    h += `<h3>Quem entra no lugar de ${esc(last(o.p.n))}?</h3><div class="card flat" style="box-shadow:none;background:var(--raise)">${b.map(p => prow(p, { a: 'mIn', m: mag(o.role, Math.round(ovrIn(p, o.role))), sub: `${POS[p.pos]} · ${p.age} anos` })).join('') || '<p class="muted pad">Banco vazio.</p>'}</div><button class="btn ghost" data-a="mOut" data-i="-1">Voltar</button>`;
+    const o = S.on[U.subOut], b = benchOf(S).sort((x, y) => ovrAt(y, o.code) - ovrAt(x, o.code));
+    h += `<h3>Quem entra no lugar de ${esc(last(o.p.n))}?</h3><div class="card flat" style="box-shadow:none;background:var(--raise)">${b.map(p => prow(p, { a: 'mIn', m: mag(o.role, Math.round(ovrAt(p, o.code))), sub: `${p.sp} · ${p.age} anos` })).join('') || '<p class="muted pad">Banco vazio.</p>'}</div><button class="btn ghost" data-a="mOut" data-i="-1">Voltar</button>`;
   } else {
-    h += `<h3>Substituições: restam ${left}</h3><div class="card flat" style="box-shadow:none;background:var(--raise)">${act.map(([o, i]) => prow(o.p, { a: left ? 'mOut' : 'none', x: `data-i="${i}"`, m: mag(o.role, Math.round(ovrIn(o.p, o.role))), sub: `${POS[o.role]}${o.yc ? ' · 🟨' : ''}${o.g ? ' · ⚽'.repeat(1) + (o.g > 1 ? '×' + o.g : '') : ''}`, r: `<span class="mini"><span>${Math.round(o.en)}</span>${bar(o.en, enCls(o.en))}</span>` })).join('')}</div><p class="muted">Toque em quem sai. Jogador cansado rende menos e machuca mais.</p>`;
+    h += `<h3>Substituições: restam ${left}</h3><div class="card flat" style="box-shadow:none;background:var(--raise)">${act.map(([o, i]) => prow(o.p, { a: left ? 'mOut' : 'none', x: `data-i="${i}"`, m: mag(o.role, Math.round(ovrAt(o.p, o.code))), sub: `${o.code}${o.yc ? ' · 🟨' : ''}${o.g ? ' · ⚽'.repeat(1) + (o.g > 1 ? '×' + o.g : '') : ''}`, r: `<span class="mini"><span>${Math.round(o.en)}</span>${bar(o.en, enCls(o.en))}</span>` })).join('')}</div><p class="muted">Toque em quem sai. Jogador cansado rende menos e machuca mais.</p>`;
   }
   openSheet(h + '<button class="btn wide" data-a="close">Voltar ao jogo</button></div>');
 }
 function injSheet() {
-  const M = U.M, { S, o } = M.pend, b = benchOf(S).sort((x, y) => ovrIn(y, o.role) - ovrIn(x, o.role));
-  openSheet(`<h2 style="padding-right:36px"><span>Lesão</span></h2><p class="hand red" style="margin:8px 0">${esc(o.p.n)} não volta. Fora por ${plural(o.p.inj, 'semana', 'semanas')}.</p><h3>Quem entra?</h3><div class="card flat" style="box-shadow:none;background:var(--raise);margin-top:8px">${b.map(p => prow(p, { a: 'injIn', m: mag(o.role, Math.round(ovrIn(p, o.role))), sub: `${POS[p.pos]} · ${p.age} anos` })).join('')}</div>`);
+  const M = U.M, { S, o } = M.pend, b = benchOf(S).sort((x, y) => ovrAt(y, o.code) - ovrAt(x, o.code));
+  openSheet(`<h2 style="padding-right:36px"><span>Lesão</span></h2><p class="hand red" style="margin:8px 0">${esc(o.p.n)} não volta. Fora por ${plural(o.p.inj, 'semana', 'semanas')}.</p><h3>Quem entra?</h3><div class="card flat" style="box-shadow:none;background:var(--raise);margin-top:8px">${b.map(p => prow(p, { a: 'injIn', m: mag(o.role, Math.round(ovrAt(p, o.code))), sub: `${p.sp} · ${p.age} anos` })).join('')}</div>`);
 }
 
 // ---------- pós-jogo, temporada, demissão ----------
@@ -386,7 +455,7 @@ function showPost() {
   const gm = mh ? r.gh : r.ga, go = mh ? r.ga : r.gh, ps = mh ? L.st.pos : 100 - L.st.pos, ix = mh ? 0 : 1;
   const pen = r.pso ? ` <small style="font-size:18px">(${mh ? r.pso[0] : r.pso[1]}–${mh ? r.pso[1] : r.pso[0]} pên.)</small>` : '';
   const goals = L.goals.map(g => `<div class="kv"><span>${g.m}' ${esc(g.n)}</span><b>${(g.s === 'h') === mh ? esc(m.abbr) : esc(o.abbr)}</b></div>`).join('');
-  const rows = L.mine.slice().sort((a, b) => b.note - a.note).map(x => `<div class="prow">${mag(x.pos, x.note.toFixed(1).replace('.', ','), 'rg')}<span class="grow"><b>${esc(x.n)}</b><small>${POS[x.pos]}${x.g ? ' · ' + plural(x.g, 'gol', 'gols') : ''}${x.a ? ' · ' + x.a + ' assist.' : ''}${x.yc ? ' · amarelo' : ''}${x.red ? ' · expulso' : ''}${x.hurt ? ' · lesionado' : ''}</small></span></div>`).join('');
+  const rows = L.mine.slice().sort((a, b) => b.note - a.note).map(x => `<div class="prow">${mag(x.pos, x.note.toFixed(1).replace('.', ','), 'rg')}<span class="grow"><b>${esc(x.n)}</b><small>${x.c || POS[x.pos]}${x.g ? ' · ' + plural(x.g, 'gol', 'gols') : ''}${x.a ? ' · ' + x.a + ' assist.' : ''}${x.yc ? ' · amarelo' : ''}${x.red ? ' · expulso' : ''}${x.hurt ? ' · lesionado' : ''}</small></span></div>`).join('');
   const others = L.e.t === 'L' ? G.lg[m.div].res[L.e.r].map(x => fxRow(x[0], x[1], [x[2], x[3]])).join('') : G.cup.rounds[L.e.r].map(t => fxRow(t.h, t.a, [t.gh, t.ga], t.pso)).join('');
   showOv(`<div class="card stack" style="text-align:center"><div class="muted">${entryLabel(L.e)}</div><div class="vs"><div class="t">${crest(m, 52)}<b>${esc(m.name)}</b></div><div class="big num">${gm}–${go}${pen}</div><div class="t">${crest(o, 52)}<b>${esc(o.name)}</b></div></div><div><span class="stamp ${L.out > 0 ? 'V' : L.out < 0 ? 'D' : ''}">${L.out > 0 ? 'Vitória' : L.out < 0 ? 'Derrota' : 'Empate'}</span></div></div>
     ${goals ? `<div class="card"><div class="head"><h2><span>Gols</span></h2></div>${goals}</div>` : ''}
@@ -402,7 +471,7 @@ function showReview() {
       ${v.promoted ? '<p class="hand ok">Subimos para a Série A!</p>' : ''}${v.relegated ? '<p class="hand red">Rebaixados para a Série B.</p>' : ''}${v.trophies.map(t => `<p class="hand ok">★ Campeão: ${esc(t)}</p>`).join('')}</div>
     <div class="card">${kv('Meta da diretoria', `${v.obj.t} (até ${v.obj.pos}º)`)}${kv('Confiança', (v.dc >= 0 ? '+' : '−') + Math.abs(v.dc), v.dc >= 0 ? 'pos' : 'neg')}${kv('Premiação pela posição', '+' + money(v.prize), 'pos')}${kv('Balanço do ano', money(v.fin.in - v.fin.out), v.fin.in >= v.fin.out ? 'pos' : 'neg')}${kv('Seu artilheiro', esc(v.best))}</div>
     <div class="card">${kv('Campeão da Série A', esc(v.champA))}${kv('Campeão da Copa', esc(v.cup))}${kv('Artilheiro da divisão', esc(v.top))}${kv('Sobem', v.up.map(esc).join(', '))}${kv('Caem', v.down.map(esc).join(', '))}</div>
-    <div class="card flat"><div class="head pad"><h2><span>Contratos no fim</span></h2><small>${exp.length ? 'quem não renovar vai embora' : ''}</small></div>${exp.map(p => prow(p, { a: 'none', sub: `${POS[p.pos]} · ${p.age} anos · pede ${money(renewAsk(p))}/sem`, r: `<span class="btn sm" data-a="rvRenew" data-id="${p.id}" role="button" tabindex="0">Renovar 2 anos</span>` })).join('') || '<p class="muted pad">Ninguém em fim de contrato.</p>'}</div>
+    <div class="card flat"><div class="head pad"><h2><span>Contratos no fim</span></h2><small>${exp.length ? 'quem não renovar vai embora' : ''}</small></div>${exp.map(p => prow(p, { a: 'none', sub: `${p.sp} · ${p.age} anos · pede ${money(renewAsk(p))}/sem`, r: `<span class="btn sm" data-a="rvRenew" data-id="${p.id}" role="button" tabindex="0">Renovar 2 anos</span>` })).join('') || '<p class="muted pad">Ninguém em fim de contrato.</p>'}</div>
     <p class="hint">Na virada do ano todo mundo fica um ano mais velho, veteranos podem se aposentar e a base revela novos garotos.</p>`,
   `<button class="btn cta" data-a="season">Começar ${v.year + 1}</button>`);
 }
@@ -442,8 +511,10 @@ const ACT = {
   res(d) { const it = G.inbox.find(i => i.id === +d.id); resolve(it, +d.i); done(it.done); },
   play() { startMatch(); },
   // time
-  slot(d) { if (Date.now() - (U.dragT || 0) < 400) return; pickSheet(+d.k); },
-  put(d) { const m = me(), k = +d.k, id = +d.id, j = m.lineup.indexOf(id); if (j >= 0) m.lineup[j] = m.lineup[k]; m.lineup[k] = id; closeSheet(); done(); },
+  slot(d) { if (Date.now() - (U.dragT || 0) < 400) return; slotMenu(+d.k); },
+  pick(d) { pickSheet(+d.k); },
+  place(d) { placeSheet(pl(+d.id)); },
+  put(d) { const m = me(), k = +d.k, id = +d.id, j = m.lineup.indexOf(id); if (j === k) return; if (j >= 0) m.lineup[j] = m.lineup[k]; m.lineup[k] = id; closeSheet(); const p = pl(id), code = codesOf(m)[k]; done(`${last(p.n)} de ${code} (${Math.round(ovrAt(p, code))}).`); },
   auto() { autoLineup(me()); done('Melhor time escalado.'); },
   form(d) { setFormation(me(), d.v); done(); },
   more() { U.more = !U.more; render(); },
@@ -461,7 +532,13 @@ const ACT = {
   neg(d) { const p = pl(+d.id); prepAsk(p); U.neg = { pid: p.id, fee: clubOf(p.id) ? round5(p.ask * 0.9) : p.ask, wage: p.wask, yrs: 2, msg: '' }; negSheet(); },
   negY(d) { U.neg.yrs = +d.v; negSheet(); },
   negSend() { const N = U.neg, p = pl(N.pid), r = bid(p, N.fee, N.wage, N.yrs); if (r.ok) { closeSheet(); return done(r.msg); } if (r.counter) { N.fee = r.counter.fee; N.wage = r.counter.wage; } N.msg = r.msg; save(); negSheet(); },
-  list(d) { const p = pl(+d.id); p.list = !p.list; save(); render(); playerSheet(p); toast(p.list ? 'Na lista de vendas.' : 'Fora da lista de vendas.'); },
+  sell(d) { U.ask = null; sellSheet(pl(+d.id)); },
+  listOk(d) { const p = pl(+d.id); listFor(p, U.ask != null ? U.ask : p.list || valueOf(p) * 1.1); U.ask = null; closeSheet(); done(`${p.n} anunciado por ${money(p.list)}.`); },
+  unlist(d) { const p = pl(+d.id); listFor(p, 0); U.ask = null; closeSheet(); done(`${p.n} saiu do mercado.`); },
+  quick(d) { const p = pl(+d.id); confirmSheet(`Vender ${esc(last(p.n))} agora?`, `Ele sai do clube por ${money(quickPrice(p))} (valor de mercado: ${money(valueOf(p))}).`, 'quickOk', p.id, 'Vender agora', 'red'); },
+  quickOk(d) { const r = quickSell(pl(+d.v)); closeSheet(); done(r.msg); },
+  watch(d) { const id = +d.id, p = pl(id); G.watch = G.watch.includes(id) ? G.watch.filter(x => x !== id) : [...G.watch, id]; save(); render(); playerSheet(p); },
+  sort(d) { U.sort = d.v; render(); },
   release(d) { const p = pl(+d.id); confirmSheet('Dispensar ' + esc(p.n) + '?', `A rescisão custa ${money(p.w * 6)}. Ele fica sem clube.`, 'releaseOk', p.id, 'Dispensar', 'red'); },
   releaseOk(d) { const p = pl(+d.v), e = release(p); closeSheet(); done(e || p.n + ' foi dispensado.'); },
   renewSheet(d) { const p = pl(+d.id), w = renewAsk(p); openSheet(`<h2 style="padding-right:36px">Renovar com ${esc(last(p.n))}</h2><div class="stack" style="margin-top:10px"><div>${kv('Salário atual', money(p.w) + ' por semana')}${kv('Ele pede', money(w) + ' por semana')}${kv('Contrato atual', 'até ' + ctrEnd(p))}</div><div class="btns">${[1, 2, 3].map(y => `<button class="btn" data-a="renew" data-id="${p.id}" data-y="${y}">Até ${G.year + y}</button>`).join('')}</div></div>`); },
@@ -504,30 +581,41 @@ function enter() {
   if (G.over) showOver(); else if (G.review) showReview(); else if (G.stage === 'post' && G.last) showPost(); else hideOv();
 }
 document.addEventListener('click', e => { const b = e.target.closest('[data-a]'); if (!b || b.disabled) return; const fn = ACT[b.dataset.a]; if (fn) { e.preventDefault(); fn(b.dataset, b); } });
+// ímãs: toque abre o menu; pressionar ~0,25 s "descola" o ímã e aí ele pode ser arrastado
 let DR = null;
+function armMagnet() { if (!DR) return; DR.armed = true; DR.el.classList.add('lift'); $('#board').classList.add('dragging'); try { if (navigator.vibrate) navigator.vibrate(12); } catch (x) { /* sem vibração */ } }
 document.addEventListener('pointerdown', e => {
   SFX.init();
   const el = e.target.closest('#board .slot'); if (!el || !G) return;
-  DR = { el, k: +el.dataset.k, x0: e.clientX, y0: e.clientY, moved: false, bd: $('#board').getBoundingClientRect(), id: e.pointerId };
+  DR = { el, k: +el.dataset.k, x0: e.clientX, y0: e.clientY, moved: false, armed: false, bd: $('#board').getBoundingClientRect(), id: e.pointerId, t: setTimeout(armMagnet, 240) };
   try { el.setPointerCapture(e.pointerId); } catch (x) { /* sem captura */ }
 }, true);
 document.addEventListener('pointermove', e => {
   if (!DR || e.pointerId !== DR.id) return;
-  if (!DR.moved && Math.hypot(e.clientX - DR.x0, e.clientY - DR.y0) < 7) return;
+  if (!DR.armed) { if (Math.hypot(e.clientX - DR.x0, e.clientY - DR.y0) > 9) { clearTimeout(DR.t); DR.cancel = true; } return; }
   DR.moved = true; e.preventDefault();
   const m = me(), p = pl(m.lineup[DR.k]);
   moveSpot(m, DR.k, (e.clientX - DR.bd.left) / DR.bd.width * 100, (e.clientY - DR.bd.top) / DR.bd.height * 100);
-  const sp = m.spots[DR.k], r = rolesOf(m)[DR.k], mg = DR.el.querySelector('.mag');
-  DR.el.style.left = sp.x + '%'; DR.el.style.top = sp.y + '%'; DR.el.classList.add('drag'); $('#board').classList.add('dragging');
-  mg.className = 'mag p' + r; mg.textContent = Math.round(ovrIn(p, r));
+  const sp = m.spots[DR.k], code = codesOf(m)[DR.k], g = SP[code].g, mg = DR.el.querySelector('.mag'), pc = DR.el.querySelector('.pc');
+  DR.el.style.left = sp.x + '%'; DR.el.style.top = sp.y + '%'; DR.el.classList.add('drag');
+  mg.className = 'mag p' + g; mg.textContent = Math.round(ovrAt(p, code));
+  pc.textContent = code; pc.className = 'pc ' + pcCls(p, code);
 });
-function dropMagnet(e) { if (!DR || e.pointerId !== DR.id) return; const d = DR; DR = null; if (d.moved) { U.dragT = Date.now(); save(); render(); } }
+function dropMagnet(e) {
+  if (!DR || e.pointerId !== DR.id) return;
+  const d = DR; DR = null; clearTimeout(d.t);
+  if (d.armed || d.cancel) U.dragT = Date.now();
+  d.el.classList.remove('lift'); const b = $('#board'); if (b) b.classList.remove('dragging');
+  if (d.moved) { save(); render(); }
+}
 document.addEventListener('pointerup', dropMagnet);
 document.addEventListener('pointercancel', dropMagnet);
 document.addEventListener('input', e => {
   const t = e.target;
   if (t.id === 'negFee') { U.neg.fee = +t.value; $('#negFeeV').textContent = money(U.neg.fee); }
   if (t.id === 'negWage') { U.neg.wage = +t.value; $('#negWageV').textContent = money(U.neg.wage); }
+  if (t.id === 'negFee' || t.id === 'negWage') { const p = pl(U.neg.pid), ch = bidChance(p, U.neg.fee, U.neg.wage); if ($('#chFee')) $('#chFee').innerHTML = chTxt(ch.fee); $('#chWage').innerHTML = chTxt(ch.wage); $('#negSum').innerHTML = negSum(clubOf(p.id) ? U.neg.fee : p.ask, U.neg.wage); }
+  if (t.id === 'askP') { U.ask = +t.value; const v = valueOf(pl(+$('[data-a="listOk"]').dataset.id)); $('#askV').textContent = money(U.ask); $('#askOdds').innerHTML = oddsTxt(clamp(1.3 - 0.75 * (U.ask / v), 0.04, 0.85), U.ask / v); }
   if (t.id === 'crName') { U.cr.name = t.value; if (U.cr.auto) { U.cr.abbr = abbrOf(t.value); $('#crAbbr').value = U.cr.abbr; } }
   if (t.id === 'crAbbr') { U.cr.abbr = t.value.toUpperCase(); U.cr.auto = false; }
 });

@@ -24,24 +24,42 @@ const POS_N = ['Goleiro', 'Defensor', 'Meia', 'Atacante'];
 const KEY = ['g', 'd', 'm', 'a'];
 const ATTR_N = { g: 'Goleiro', d: 'Defesa', m: 'Criação', a: 'Ataque' };
 const OVW = [null, { d: 0.7, m: 0.2, a: 0.1 }, { d: 0.25, m: 0.5, a: 0.25 }, { d: 0.1, m: 0.2, a: 0.7 }];
+// Posições específicas. g = setor (0 goleiro, 1 defesa, 2 meio, 3 ataque).
+const SP = {
+  GOL: { g: 0, n: 'Goleiro' }, ZAG: { g: 1, n: 'Zagueiro' }, LD: { g: 1, n: 'Lateral-direito' }, LE: { g: 1, n: 'Lateral-esquerdo' },
+  VOL: { g: 2, n: 'Volante' }, MC: { g: 2, n: 'Meio-campista' }, MEI: { g: 2, n: 'Meia-atacante' }, MD: { g: 2, n: 'Meia-direita' }, ME: { g: 2, n: 'Meia-esquerda' },
+  PD: { g: 3, n: 'Ponta-direita' }, PE: { g: 3, n: 'Ponta-esquerda' }, CA: { g: 3, n: 'Centroavante' }
+};
+const SP_ORDER = ['GOL', 'ZAG', 'LD', 'LE', 'VOL', 'MC', 'MEI', 'MD', 'ME', 'PD', 'PE', 'CA'];
+const SP_NEAR = { ZAG: ['VOL', 'LD', 'LE'], LD: ['MD', 'ZAG', 'LE'], LE: ['ME', 'ZAG', 'LD'], VOL: ['ZAG', 'MC'], MC: ['VOL', 'MEI', 'MD', 'ME'], MEI: ['MC', 'CA'], MD: ['LD', 'PD', 'ME', 'MC'], ME: ['LE', 'PE', 'MD', 'MC'], PD: ['MD', 'PE', 'CA'], PE: ['ME', 'PD', 'CA'], CA: ['MEI', 'PD', 'PE'] };
+const SP_PICK = [['GOL'], ['ZAG', 'ZAG', 'LD', 'LE'], ['VOL', 'MC', 'MC', 'MEI', 'MD', 'ME'], ['CA', 'CA', 'PD', 'PE']];
+// fator sobre o nível natural: mesma posição, posição vizinha, mesmo setor, outro setor
+const FIT_N = { same: 1, near: 0.93, sector: 0.86, other: 0.76 };
 // Formação livre: cada titular tem um ímã (x, y em % do quadro; y 0 = ataque, 100 = próprio gol).
 // A faixa onde o ímã está define a função; a quantidade em cada faixa define o bônus do setor.
-const PRESETS = ['4-4-2', '4-3-3', '4-5-1', '3-5-2', '3-4-3', '5-3-2', '5-4-1'];
+const PRESET = {
+  '4-4-2': [[50, 90], [14, 66], [38, 70], [62, 70], [86, 66], [14, 42], [38, 44], [62, 44], [86, 42], [38, 17], [62, 17]],
+  '4-3-3': [[50, 90], [14, 66], [38, 70], [62, 70], [86, 66], [30, 42], [50, 49], [70, 42], [16, 20], [50, 15], [84, 20]],
+  '4-2-3-1': [[50, 90], [14, 66], [38, 70], [62, 70], [86, 66], [37, 50], [63, 50], [16, 33], [50, 33], [84, 33], [50, 14]],
+  '4-5-1': [[50, 90], [14, 66], [38, 70], [62, 70], [86, 66], [14, 40], [33, 42], [50, 49], [67, 42], [86, 40], [50, 16]],
+  '3-5-2': [[50, 90], [26, 69], [50, 72], [74, 69], [12, 42], [34, 42], [50, 49], [66, 42], [88, 42], [38, 17], [62, 17]],
+  '3-4-3': [[50, 90], [26, 69], [50, 72], [74, 69], [14, 42], [38, 44], [62, 44], [86, 42], [16, 20], [50, 15], [84, 20]],
+  '5-3-2': [[50, 90], [10, 62], [30, 69], [50, 72], [70, 69], [90, 62], [30, 42], [50, 48], [70, 42], [38, 17], [62, 17]],
+  '5-4-1': [[50, 90], [10, 62], [30, 69], [50, 72], [70, 69], [90, 62], [14, 42], [38, 45], [62, 45], [86, 42], [50, 16]]
+};
+const PRESETS = Object.keys(PRESET);
 const DEFM = [0.6, 0.72, 0.84, 0.93, 1, 1.08, 1.13, 1.16, 1.18, 1.19, 1.2];
 const MIDM = [0.6, 0.74, 0.86, 0.94, 1, 1.07, 1.12, 1.15, 1.17, 1.18, 1.19];
 const ATKM = [0.72, 0.9, 1, 1.07, 1.12, 1.15, 1.17, 1.18, 1.19, 1.2, 1.2];
 const ZONE = { dm: 56, ma: 30 };
-function presetSpots(name) {
-  const n = [1, ...name.split('-').map(Number)], ys = [90, 67, 43, 17], out = [];
-  for (let r = 0; r < 4; r++) for (let i = 0; i < n[r]; i++) {
-    const x = 50 + ((i + 1) / (n[r] + 1) * 100 - 50) * (n[r] >= 4 ? 1.16 : 1.05);
-    const y = ys[r] + (n[r] >= 5 ? (i % 2 ? 3.4 : -3.4) : n[r] === 4 ? (i === 0 || i === 3 ? -2.6 : 2.6) : 0);
-    out.push({ x: Math.round(x * 10) / 10, y: Math.round(y * 10) / 10 });
-  }
-  return out;
+const presetSpots = name => (PRESET[name] || PRESET['4-4-2']).map(([x, y]) => ({ x, y }));
+function codeAt(x, y) {
+  if (y >= ZONE.dm) return x < 24 ? 'LE' : x > 76 ? 'LD' : 'ZAG';
+  if (y >= ZONE.ma) return x < 24 ? 'ME' : x > 76 ? 'MD' : y >= 47 ? 'VOL' : y < 37 ? 'MEI' : 'MC';
+  return x < 30 ? 'PE' : x > 70 ? 'PD' : 'CA';
 }
-const roleAtY = y => (y >= ZONE.dm ? 1 : y >= ZONE.ma ? 2 : 3);
-const rolesOf = c => c.spots.map((sp, i) => (i === 0 ? 0 : roleAtY(sp.y)));
+const codesOf = c => c.spots.map((sp, i) => (i === 0 ? 'GOL' : codeAt(sp.x, sp.y)));
+const rolesOf = c => codesOf(c).map(k => SP[k].g);
 const countsOf = roles => [1, 2, 3].map(r => roles.filter(x => x === r).length);
 const formName = c => countsOf(rolesOf(c)).join('-');
 // entrosamento efetivo: cada jogador que mudou de linha desde o último jogo custa 8 pontos
@@ -116,6 +134,10 @@ const BASES = [[76, 75, 74, 73, 72, 71, 70, 69, 68, 67], [66, 65, 64, 63, 62, 61
 let G = null;
 const PMAP = new Map();
 function reindex() {
+  for (const p of [...G.clubs.flatMap(c => c.players), ...G.free, ...G.youth]) if (!p.sp) p.sp = pickCode(p.pos);
+  if (!G.tx) G.tx = [];
+  for (const p of G.clubs[0] ? G.clubs[0].players : []) if (p.list === true) p.list = round5(valueOf(p) * 1.1);
+  if (!G.watch) G.watch = [];
   for (const c of G.clubs) if (!c.spots) { c.spots = presetSpots(PRESETS.includes(c.form) ? c.form : '4-4-2'); c.form = formName(c); c.lastCnt = countsOf(rolesOf(c)); }
   PMAP.clear();
   for (const c of G.clubs) for (const p of c.players) PMAP.set(p.id, p);
@@ -141,11 +163,31 @@ function shape(pos, T) {
   if (pos === 2) return { g: 14, d: T - 6, m: T + 5, a: T - 4 };
   return { g: 14, d: T - 22, m: T - 7, a: T + 5 };
 }
-// atributos efetivos numa função (o Coringa se molda ao setor)
+// atributos efetivos num setor: fora do setor de origem, o jogador rende como alguém
+// daquele setor com o seu nível (o fator de posição desconta o resto)
 function attrsIn(p, role) {
-  if (p.tr === 'coringa' && p.pos > 0 && role > 0 && role !== p.pos) return shape(role, ovrIn(p, p.pos));
+  if (p.pos > 0 && role > 0 && role !== p.pos) return shape(role, ovrIn(p, p.pos));
   return p;
 }
+function fitKind(p, code) {
+  const sp = p.sp;
+  if (sp === code) return 'same';
+  if ((SP[code].g === 0) !== (p.pos === 0)) return 'other';
+  return (SP_NEAR[sp] || []).includes(code) ? 'near' : SP[sp].g === SP[code].g ? 'sector' : 'other';
+}
+function fitOf(p, code) {
+  if ((SP[code].g === 0) !== (p.pos === 0)) return 1; // goleiro na linha (ou o contrário): os atributos já derrubam o nível
+  const f = FIT_N[fitKind(p, code)];
+  return p.tr === 'coringa' ? Math.max(f, 0.96) : f;
+}
+// nível do jogador jogando numa posição específica
+function ovrAt(p, code) {
+  const g = SP[code].g;
+  if (g === 0) return p.g;
+  if (p.pos === 0) return ovrIn(p, g);
+  return ovrIn(p, p.pos) * fitOf(p, code);
+}
+const pickCode = g => pick(SP_PICK[g]);
 const baseVal = o => 40 * Math.pow(1.13, o - 50);
 const wageOf = p => Math.max(1, Math.round(baseVal(ovr(p)) * 0.02));
 function valueOf(p) {
@@ -158,37 +200,39 @@ const formOf = p => (p.h.length ? avg(p.h, x => x) : 0);
 const avail = p => !p.inj && !p.sus;
 function traitFor(pos, age) {
   const t = ['pulmao', 'vidraca', 'pavio'];
-  if (pos === 0) t.push('paredao', 'paredao'); else t.push('batedor', 'coringa');
+  if (pos === 0) t.push('paredao', 'paredao'); else t.push('batedor', 'coringa', 'coringa');
   if (pos >= 2) t.push('matador', 'matador');
   if (age <= 21) t.push('promessa', 'promessa');
   if (age >= 27) t.push('lider', 'lider');
   return pick(t);
 }
+const SP_TWEAK = { LD: { d: -3, m: 3 }, LE: { d: -3, m: 3 }, VOL: { d: 5, a: -5 }, MEI: { d: -6, m: 2, a: 4 }, MD: { a: 2 }, ME: { a: 2 }, PD: { m: 2 }, PE: { m: 2 }, CA: { a: 2, m: -2 } };
 function mkPlayer(pos, T, age, opt = {}) {
   T = clamp(T, 30, 94);
-  const s = shape(pos, T), j = () => rnd(-3, 3);
+  const code = typeof pos === 'string' ? pos : pickCode(pos);
+  pos = SP[code].g;
+  const s = shape(pos, T), j = () => rnd(-3, 3), tw = SP_TWEAK[code] || {};
+  for (const k in tw) s[k] += tw[k];
   const fix = v => Math.round(clamp(v, 5, 99));
   const p = {
-    id: G.uid++, n: pick(FIRST) + ' ' + pick(LAST), pos, age,
+    id: G.uid++, n: pick(FIRST) + ' ' + pick(LAST), pos, sp: code, age,
     g: fix(pos === 0 ? s.g + j() * 0.3 : 10 + R() * 12), d: fix(s.d + j()), m: fix(s.m + j()), a: fix(s.a + j()),
     pot: 0, en: 100, mo: 62, h: [], inj: 0, sus: 0, yc: 0, ctr: ri(1, 3), tr: '', gl: 0, as: 0, ap: 0, xp: 0, w: 1
   };
   if (pos === 0) p.g = fix(T + j() * 0.3);
+  const d0 = T - ovrIn(p, pos);
+  if (pos > 0) for (const k of ['d', 'm', 'a']) p[k] = fix(p[k] + d0);
   const o = ovr(p);
   p.pot = Math.min(96, opt.pot || (age <= 20 ? o + ri(6, 20) : age <= 23 ? o + ri(3, 12) : age <= 27 ? o + ri(0, 4) : o));
   if (R() < (opt.trait != null ? opt.trait : 0.3)) p.tr = traitFor(pos, age);
   p.w = wageOf(p);
   return p;
 }
-function mkSquad(base, n = [2, 6, 7, 5]) {
-  const out = [];
-  const starters = [1, 4, 4, 2];
-  for (let pos = 0; pos < 4; pos++) for (let i = 0; i < n[pos]; i++) {
-    const st = i < starters[pos];
-    const age = st ? ri(22, 32) : R() < 0.45 ? ri(17, 21) : ri(22, 34);
-    out.push(mkPlayer(pos, base + (st ? rnd(-3, 5) : rnd(-10, -2)), age));
-  }
-  return out;
+// elenco padrão: titulares (st) nas 11 posições mais usadas e reservas para cada uma
+const SQUAD_T = [['GOL', 1], ['GOL', 0], ['ZAG', 1], ['ZAG', 1], ['ZAG', 0], ['LD', 1], ['LE', 1], ['LD', 0], ['LE', 0], ['VOL', 1], ['VOL', 0], ['MC', 1], ['MC', 0], ['MEI', 1], ['MD', 1], ['ME', 1], ['CA', 1], ['CA', 0], ['PD', 1], ['PE', 1], ['PD', 0]];
+const SQUAD_NEED = { GOL: 2, ZAG: 3, LD: 1, LE: 1, VOL: 2, MC: 2, MEI: 1, MD: 1, ME: 1, PD: 1, PE: 1, CA: 2 };
+function mkSquad(base) {
+  return SQUAD_T.map(([code, st]) => mkPlayer(code, base + (st ? rnd(-3, 5) : rnd(-10, -2)), st ? ri(22, 32) : R() < 0.45 ? ri(17, 21) : ri(22, 34)));
 }
 function grow(p, rate, focus) {
   p.xp += rate;
@@ -217,22 +261,20 @@ function ensureSquad(c) {
 }
 function autoLineup(c) {
   ensureSquad(c);
-  const roles = rolesOf(c), need = [1, ...countsOf(roles)], got = [[], [], [], []], used = new Set(), pairs = [];
-  for (const p of c.players) if (avail(p)) for (let r = 0; r < 4; r++) {
-    pairs.push([p, r, ovrIn(p, r) * (0.8 + 0.2 * p.en / 100) - (r !== p.pos && p.tr !== 'coringa' ? 2 : 0)]);
-  }
+  const codes = codesOf(c), pairs = [], lineup = Array(11).fill(0), used = new Set();
+  for (const p of c.players) if (avail(p)) codes.forEach((k, i) => pairs.push([p, i, ovrAt(p, k) * (0.8 + 0.2 * p.en / 100)]));
   pairs.sort((x, y) => y[2] - x[2]);
-  for (const [p, r] of pairs) { if (used.has(p.id) || got[r].length >= need[r]) continue; used.add(p.id); got[r].push(p.id); }
-  c.lineup = roles.map(r => got[r].shift() || 0);
-  return c.lineup;
+  for (const [p, i] of pairs) if (!lineup[i] && !used.has(p.id)) { lineup[i] = p.id; used.add(p.id); }
+  c.lineup = lineup;
+  return lineup;
 }
 function fixLineup(c) {
   ensureSquad(c);
   if (!c.lineup || c.lineup.length !== 11) return autoLineup(c);
-  const roles = rolesOf(c), keep = new Set();
+  const codes = codesOf(c), keep = new Set();
   const ok = c.lineup.map(id => { const p = c.players.find(x => x.id === id); if (p && avail(p) && !keep.has(id)) { keep.add(id); return true; } return false; });
   for (let i = 0; i < 11; i++) if (!ok[i]) {
-    const cand = c.players.filter(p => avail(p) && !keep.has(p.id)).sort((x, y) => ovrIn(y, roles[i]) - ovrIn(x, roles[i]))[0];
+    const cand = c.players.filter(p => avail(p) && !keep.has(p.id)).sort((x, y) => ovrAt(y, codes[i]) - ovrAt(x, codes[i]))[0];
     c.lineup[i] = cand ? cand.id : 0; if (cand) keep.add(cand.id);
   }
   return c.lineup;
@@ -247,10 +289,10 @@ function moveSpot(c, i, x, y) {
 function setStyle(c, s) { if (c.style === s) return; c.style = s; c.fam = Math.round(c.fam * 0.78); }
 // força "no papel" (elenco titular descansado, sem tática)
 function power(c) {
-  const roles = rolesOf(c);
+  const codes = codesOf(c);
   const ids = c.lineup && c.lineup.length === 11 ? c.lineup : null;
   if (!ids) { const best = c.players.slice().sort((a, b) => ovr(b) - ovr(a)).slice(0, 11); return avg(best, ovr, 50); }
-  return avg(ids.map((id, i) => [c.players.find(p => p.id === id), roles[i]]).filter(x => x[0]), x => ovrIn(x[0], x[1]), 50);
+  return avg(ids.map((id, i) => [c.players.find(p => p.id === id), codes[i]]).filter(x => x[0]), x => ovrAt(x[0], x[1]), 50);
 }
 
 // =====================================================================
@@ -277,10 +319,10 @@ const last = n => n.split(' ').slice(-1)[0];
 
 function mkSide(c, home, user) {
   if (user) fixLineup(c); else autoLineup(c);
-  const roles = rolesOf(c);
+  const codes = codesOf(c), roles = codes.map(k => SP[k].g);
   return {
     c, home, user, form: c.form, cnt: countsOf(roles), style: c.style, ment: c.ment || 'eq', fam: famNow(c),
-    on: c.lineup.map((id, i) => ({ p: c.players.find(p => p.id === id), role: roles[i], i, en: 0, r: 6, g: 0, a: 0, yc: 0, out: false, t0: 0, t1: 90 })).filter(o => o.p),
+    on: c.lineup.map((id, i) => { const p = c.players.find(x => x.id === id); return { p, role: roles[i], code: codes[i], fit: p ? fitOf(p, codes[i]) : 1, i, en: 0, r: 6, g: 0, a: 0, yc: 0, out: false, t0: 0, t1: 90 }; }).filter(o => o.p),
     served: c.players.filter(p => p.sus > 0), usedIds: new Set(c.lineup),
     subs: 0, g: 0, sh: 0, sot: 0, pos: 0, boost: 1, s: null
   };
@@ -300,7 +342,7 @@ function newMatch(hc, ac, o = {}) {
 function sectorsOf(S, O) {
   const n = S.cnt, st = STYLES[S.style], mt = MENT[S.ment];
   const act = S.on.filter(o => !o.out);
-  const e = (o, k) => attrsIn(o.p, o.role)[k] * (0.72 + 0.28 * o.en / 100) * (0.95 + 0.1 * o.p.mo / 100);
+  const e = (o, k) => attrsIn(o.p, o.role)[k] * o.fit * (0.72 + 0.28 * o.en / 100) * (0.95 + 0.1 * o.p.mo / 100);
   const A = (r, k) => { const l = act.filter(o => o.role === r); const miss = Math.max(0, n[r - 1] - l.length); return l.length ? sum(l, o => e(o, k)) / (l.length + 0.5 * miss) : 25; };
   const gk = act.find(o => o.role === 0);
   const k = (0.94 + 0.08 * S.fam / 100) * (S.home ? 1.04 : 1) * S.boost * (st.beats && st.beats === O.style ? 1.06 : 1);
@@ -324,17 +366,17 @@ function push(M, t, side, x, extra) { const e = Object.assign({ m: M.min, t, s: 
 function doSub(M, S, outE, pIn, why) {
   if (S.subs >= 5 || !pIn || outE.out) return false;
   outE.out = true; outE.t1 = M.min;
-  S.on.push({ p: pIn, role: outE.role, i: outE.i, en: pIn.en, r: 6, g: 0, a: 0, yc: 0, out: false, t0: M.min, t1: 90 });
+  S.on.push({ p: pIn, role: outE.role, code: outE.code, fit: fitOf(pIn, outE.code), i: outE.i, en: pIn.en, r: 6, g: 0, a: 0, yc: 0, out: false, t0: M.min, t1: 90 });
   S.usedIds.add(pIn.id); S.subs++; M.dirty = true;
   if (!M.silent) push(M, 'sub', S.home ? 'h' : 'a', `${why ? why + ' ' : ''}Sai ${last(outE.p.n)}, entra ${last(pIn.n)}.`, { out: outE.p.id, inn: pIn.id });
   return true;
 }
-const bestSub = (S, role) => benchOf(S).sort((x, y) => ovrIn(y, role) * (0.8 + 0.2 * y.en / 100) - ovrIn(x, role) * (0.8 + 0.2 * x.en / 100))[0];
+const bestSub = (S, code) => benchOf(S).sort((x, y) => ovrAt(y, code) * (0.8 + 0.2 * y.en / 100) - ovrAt(x, code) * (0.8 + 0.2 * x.en / 100))[0];
 function aiTurn(M, S, O) {
   const m = M.min;
   if (m === 60 || m === 70 || m === 80) {
     const tired = S.on.filter(o => !o.out && o.role > 0).sort((x, y) => x.en - y.en)[0];
-    if (tired && tired.en < 62) { const b = bestSub(S, tired.role); if (b && ovrIn(b, tired.role) * (0.8 + 0.2 * b.en / 100) > ovrIn(tired.p, tired.role) * (0.72 + 0.28 * tired.en / 100) - 2) doSub(M, S, tired, b); }
+    if (tired && tired.en < 62) { const b = bestSub(S, tired.code); if (b && ovrAt(b, tired.code) * (0.8 + 0.2 * b.en / 100) > ovrAt(tired.p, tired.code) * (0.72 + 0.28 * tired.en / 100) - 2) doSub(M, S, tired, b); }
   }
   if (m === 70 || m === 80) {
     const d = S.g - O.g, was = S.ment;
@@ -342,13 +384,16 @@ function aiTurn(M, S, O) {
     if (was !== S.ment) M.dirty = true;
   }
 }
+// quem finaliza: centroavante e pontas chutam mais; no escanteio, zagueiros sobem
+const W_SHOT = { GOL: 0, ZAG: 0.25, LD: 0.35, LE: 0.35, VOL: 0.45, MC: 0.9, MEI: 1.8, MD: 1.1, ME: 1.1, PD: 2.4, PE: 2.4, CA: 3.6 };
+const W_HEAD = { GOL: 0, ZAG: 1.7, LD: 0.4, LE: 0.4, VOL: 1, MC: 0.8, MEI: 0.8, MD: 0.5, ME: 0.5, PD: 0.9, PE: 0.9, CA: 2.6 };
 function chance(M, A, D) {
   const as = A.home ? 'h' : 'a';
   const act = A.on.filter(o => !o.out);
   const r0 = R();
   const type = r0 < 0.025 ? 'pen' : r0 < 0.085 ? 'falta' : r0 < 0.2 ? 'esc' : r0 < 0.32 ? 'longe' : r0 < (A.style === 'ca' ? 0.6 : 0.4) ? 'contra' : 'jog';
-  const wRole = type === 'esc' ? [0, 1.3, 1, 2.4] : [0, 0.35, 1.4, 3.2];
-  let sh = wpick(act, o => wRole[o.role] * Math.pow(attrsIn(o.p, o.role).a / 60, 2) * (o.p.tr === 'matador' ? 1.3 : 1));
+  const W = type === 'esc' ? W_HEAD : W_SHOT;
+  let sh = wpick(act, o => W[o.code] * Math.pow(attrsIn(o.p, o.role).a * o.fit / 60, 2) * (o.p.tr === 'matador' ? 1.3 : 1));
   if (type === 'pen' || type === 'falta') { const b = act.find(o => o.p.tr === 'batedor' && o.role > 0); if (b) sh = b; }
   const as2 = R() < 0.65 && type !== 'pen' && type !== 'falta' ? wpick(act.filter(o => o !== sh && o.role > 0), o => attrsIn(o.p, o.role).m) : null;
   const gk = D.on.find(o => !o.out && o.role === 0);
@@ -395,7 +440,7 @@ function injury(M) {
   o.hurt = true; M.dirty = true;
   push(M, 'inj', S.home ? 'h' : 'a', M.silent ? '' : say('inj', { p: last(o.p.n) }), { pid: o.p.id });
   if (S.user && !M.auto && S.subs < 5 && benchOf(S).length) M.pend = { S, o };
-  else { const b = bestSub(S, o.role); if (!doSub(M, S, o, b)) { o.out = true; o.t1 = M.min; } }
+  else { const b = bestSub(S, o.code); if (!doSub(M, S, o, b)) { o.out = true; o.t1 = M.min; } }
 }
 function stepMinute(M) {
   if (M.done || M.pend) return;
@@ -562,7 +607,7 @@ function newGame(o) {
     v: 1, uid: 1, season: 1, year: 2026, week: 1, ci: 0, cal: [], clubs: [], free: [], youth: [], market: [], known: {}, tries: {}, scoutQ: [],
     money: 1500, price: 30, train: { f: 'eq', i: 1 }, fac: { est: 0, ct: 0, base: 0, med: 0, olh: 0, com: 0 },
     board: { conf: 65, obj: null, warned: false }, inbox: [], lg: null, cup: null, fin: { in: {}, out: {} }, wk: { in: 0, out: 0 },
-    hist: [], trophies: [], flags: {}, over: null, review: null, tip: 0, last: null, lastWk: null
+    hist: [], trophies: [], flags: {}, over: null, review: null, tip: 0, last: null, lastWk: null, tx: [], watch: []
   };
   const u = { id: 0, name: o.name, abbr: o.abbr, c1: o.c1, c2: o.c2, crest: o.crest, pat: o.pat, div: 1, base: 0, rep: 34, form: '4-4-2', style: 'eq', ment: 'eq', fam: 60, players: [], lineup: [], hist: [], t: null };
   u.spots = presetSpots(u.form); u.lastCnt = countsOf(rolesOf(u));
@@ -651,6 +696,12 @@ function prepAsk(p) {
   p.ask = c ? round5(valueOf(p) * (listed ? rnd(1, 1.15) : rnd(1.5, 1.85))) : p.wask * 6;
   p.thr = c ? rnd(0.86, 1) : 1; p.wthr = rnd(0.9, 1);
 }
+const CH = ['improvável', 'possível', 'provável', 'certa'];
+function bidChance(p, fee, wage) {
+  prepAsk(p);
+  const c = clubOf(p.id), f = c ? fee / p.ask : 1, w = wage / p.wask;
+  return { fee: c ? (f >= 1 ? 3 : f >= 0.94 ? 2 : f >= 0.87 ? 1 : 0) : 3, wage: w >= 1 ? 3 : w >= 0.96 ? 2 : w >= 0.9 ? 1 : 0 };
+}
 function bid(p, fee, wage, yrs) {
   prepAsk(p);
   const c = clubOf(p.id), m = me();
@@ -663,13 +714,13 @@ function bid(p, fee, wage, yrs) {
   G.tries[p.id] = (G.tries[p.id] || 0) + 1;
   const feeOk = !c || fee >= p.ask * p.thr, wageOk = wage >= p.wask * p.wthr;
   if (feeOk && wageOk) {
-    if (c) { c.players = c.players.filter(x => x !== p); if (c.players.length < 18) { const y = mkPlayer(p.pos, c.base - 6 + rnd(-3, 3), ri(18, 21)); c.players.push(y); PMAP.set(y.id, y); } autoLineup(c); }
+    if (c) { c.players = c.players.filter(x => x !== p); if (c.players.length < 18) { const y = mkPlayer(p.sp, c.base - 6 + rnd(-3, 3), ri(18, 21)); c.players.push(y); PMAP.set(y.id, y); } autoLineup(c); }
     else G.free = G.free.filter(x => x !== p);
     G.market = G.market.filter(id => id !== p.id);
     p.w = wage; p.ctr = yrs; p.mo = 68; p.list = false; delete p.ask; G.known[p.id] = 1;
-    m.players.push(p);
-    spend(c ? 'Contratações' : 'Luvas', fee);
-    note('✍️', 'Reforço confirmado', `${p.n} (${POS[p.pos]}, ${ovr(p)}) assinou por ${yrs} ano${yrs > 1 ? 's' : ''}${c ? `. O ${c.name} recebeu ${money(fee)}.` : '.'}`);
+    m.players.push(p); G.watch = G.watch.filter(id => id !== p.id);
+    spend(c ? 'Contratações' : 'Luvas', fee); logTx('in', p, c ? c.name : 'sem clube', fee);
+    note('✍️', 'Reforço confirmado', `${p.n} (${p.sp}, ${ovr(p)}) assinou por ${yrs} ano${yrs > 1 ? 's' : ''}${c ? `. O ${c.name} recebeu ${money(fee)}.` : '.'}`);
     return { ok: true, msg: `${p.n} é do ${m.name}!` };
   }
   const cf = feeOk ? fee : round5(Math.ceil(p.ask * (p.thr + (1 - p.thr) * 0.5) / 5) * 5);
@@ -677,18 +728,19 @@ function bid(p, fee, wage, yrs) {
   const left = 3 - G.tries[p.id];
   return { ok: false, counter: { fee: cf, wage: cw }, feeOk, wageOk, msg: `${!feeOk ? `O ${c.name} quer ${money(cf)}. ` : ''}${!wageOk ? `${last(p.n)} pede ${money(cw)} por semana. ` : ''}${left ? `Resta${left > 1 ? 'm' : ''} ${left} tentativa${left > 1 ? 's' : ''} esta semana.` : 'Era a última tentativa da semana.'}` };
 }
+function logTx(t, p, club, fee) { G.tx.unshift({ y: G.year, w: G.week, t, n: p.n, sp: p.sp, o: ovr(p), age: p.age, club, fee }); if (G.tx.length > 60) G.tx.length = 60; }
 function sellTo(p, cid, fee) {
   const m = me(), c = G.clubs[cid];
   m.players = m.players.filter(x => x !== p); m.lineup = m.lineup.map(id => (id === p.id ? 0 : id));
   p.list = false; p.mo = 62; delete p.ask; c.players.push(p);
   if (c.players.length > 22) { const worst = c.players.slice().sort((a, b) => ovr(a) - ovr(b))[0]; c.players = c.players.filter(x => x !== worst); PMAP.delete(worst.id); G.market = G.market.filter(id => id !== worst.id); }
-  earn('Vendas', fee); fixLineup(m);
+  earn('Vendas', fee); logTx('out', p, c.name, fee); fixLineup(m);
 }
 function release(p) {
   const m = me(), cost = p.w * 6;
   if (m.players.length <= SQUAD_MIN) return `O elenco não pode ter menos de ${SQUAD_MIN} jogadores.`;
   m.players = m.players.filter(x => x !== p); m.lineup = m.lineup.map(id => (id === p.id ? 0 : id));
-  spend('Rescisões', cost); p.ctr = 0; p.list = false; G.free.push(p); fixLineup(m);
+  spend('Rescisões', cost); logTx('rel', p, 'dispensado', cost); p.ctr = 0; p.list = false; G.free.push(p); fixLineup(m);
   return '';
 }
 const renewAsk = p => Math.max(p.w, Math.round(wageOf(p) * (1.06 + (formOf(p) > 7 ? 0.1 : 0) + (p.age > 31 ? -0.12 : 0))));
@@ -700,11 +752,24 @@ function promote(p) {
   if (me().players.length >= SQUAD_MAX) return `Elenco cheio (${SQUAD_MAX}).`;
   G.youth = G.youth.filter(x => x !== p); me().players.push(p); p.mo = 75; return '';
 }
-function buyerFor(p) { const o = ovr(p); const c = G.clubs.slice(1).filter(x => o >= x.base - 7 && o <= x.base + 9); return c.length ? pick(c) : null; }
-function offerFor(p, mult) {
-  const c = buyerFor(p); if (!c) return false;
-  const fee = round5(valueOf(p) * mult);
-  ask('💰', `Proposta por ${p.n}`, `O ${c.name} oferece ${money(fee)} por ${p.n} (${POS[p.pos]}, ${ovr(p)}). Valor de mercado: ${money(valueOf(p))}.`, ['Aceitar', 'Pedir mais', 'Recusar'], 'offer', { pid: p.id, cid: c.id, fee });
+function buyerFor(p, not) { const o = ovr(p); const c = G.clubs.slice(1).filter(x => x.id !== not && o >= x.base - 7 && o <= x.base + 9 && x.players.length < 26); return c.length ? pick(c) : null; }
+// anunciar: price = preço pedido (0 tira do mercado)
+function listFor(p, price) { p.list = price > 0 ? round5(price) : 0; }
+// chance semanal de proposta para quem está à venda, pelo preço pedido em relação ao valor
+const offerOdds = p => clamp(1.3 - 0.75 * (p.list / valueOf(p)), 0.04, 0.85);
+const quickPrice = p => round5(valueOf(p) * 0.72);
+function quickSell(p) {
+  if (!windowOpen()) return { ok: false, msg: 'A janela de transferências está fechada.' };
+  if (me().players.length <= SQUAD_MIN) return { ok: false, msg: `O elenco não pode ter menos de ${SQUAD_MIN} jogadores.` };
+  const c = buyerFor(p); if (!c) return { ok: false, msg: 'Nenhum clube se interessou agora.' };
+  const fee = quickPrice(p); sellTo(p, c.id, fee);
+  return { ok: true, msg: `${p.n} foi vendido ao ${c.name} por ${money(fee)}.` };
+}
+function offerFor(p, mult, cid) {
+  const c = cid != null ? G.clubs[cid] : buyerFor(p); if (!c) return false;
+  const fee = round5(p.list ? Math.min(p.list * rnd(0.97, 1.02), valueOf(p) * mult) : valueOf(p) * mult);
+  const pct = p.list ? Math.round(100 * fee / p.list) : 0;
+  ask('💰', `Proposta por ${p.n}`, `O ${c.name} oferece ${money(fee)} por ${p.n} (${p.sp}, ${ovr(p)}). ${p.list ? `Você pede ${money(p.list)} (${pct}% da pedida).` : `Valor de mercado: ${money(valueOf(p))}.`}`, ['Aceitar', 'Pedir mais', 'Recusar'], 'offer', { pid: p.id, cid: c.id, fee });
   return true;
 }
 
@@ -717,7 +782,12 @@ const EVENTS = {
       if (i === 2) return `Proposta recusada. ${p.n} fica.`;
       if (me().players.length <= SQUAD_MIN) return `Venda cancelada: o elenco não pode ter menos de ${SQUAD_MIN} jogadores.`;
       let fee = d.fee;
-      if (i === 1) { const r = R(); if (r < 0.3) return `O ${c.name} não gostou da pedida e desistiu do negócio.`; if (r < 0.9) fee = round5(fee * rnd(1.08, 1.18)); }
+      if (i === 1) {
+        // pedir mais: perto da pedida eles costumam ceder; longe, podem desistir
+        const target = Math.max(p.list || 0, round5(fee * 1.15)), gap = target / fee - 1, r = R();
+        if (r < 0.15 + gap * 1.2) return `O ${c.name} achou caro e desistiu do negócio.`;
+        fee = r < 0.7 ? target : round5(fee + (target - fee) * 0.5);
+      }
       sellTo(p, d.cid, fee);
       return `${p.n} foi vendido ao ${c.name} por ${money(fee)}.`;
     }
@@ -731,12 +801,12 @@ const EVENTS = {
     }
   },
   reserva: {
-    make() { const m = me(), cut = power(m) - 4; const p = m.players.filter(x => !m.lineup.includes(x.id) && avail(x) && ovr(x) >= cut && x.pos > 0)[0]; if (!p) return null; return { ic: '😤', t: `${p.n} quer jogar`, x: `${p.n} (${POS[p.pos]}, ${ovr(p)}) bateu na sua porta: está cansado do banco.`, o: ['Prometer titularidade', 'Pedir paciência', 'Colocar à venda'], data: { pid: p.id } }; },
+    make() { const m = me(), cut = power(m) - 4; const p = m.players.filter(x => !m.lineup.includes(x.id) && avail(x) && ovr(x) >= cut && x.pos > 0)[0]; if (!p) return null; return { ic: '😤', t: `${p.n} quer jogar`, x: `${p.n} (${p.sp}, ${ovr(p)}) bateu na sua porta: está cansado do banco.`, o: ['Prometer titularidade', 'Pedir paciência', 'Colocar à venda'], data: { pid: p.id } }; },
     act(i, d) {
       const p = pl(d.pid); if (!p || !isMine(p)) return 'Assunto encerrado.';
       if (i === 0) { p.mo = clamp(p.mo + 14, 5, 100); p.prom = 2; return `${p.n} saiu animado. Escale-o em até 2 jogos, ou o moral dele despenca.`; }
       if (i === 1) { const ok = R() < 0.5; p.mo = clamp(p.mo + (ok ? 6 : -8), 5, 100); return ok ? `${p.n} entendeu e segue trabalhando.` : `${p.n} saiu da sala contrariado.`; }
-      p.list = true; p.mo = clamp(p.mo - 5, 5, 100); return `${p.n} foi para a lista de vendas.`;
+      listFor(p, valueOf(p) * 1.1); p.mo = clamp(p.mo - 5, 5, 100); return `${p.n} foi anunciado por ${money(p.list)}.`;
     }
   },
   churrasco: {
@@ -761,7 +831,7 @@ const EVENTS = {
       if (i) return 'Você preferiu não arriscar.';
       spend('Olheiros', 25);
       const p = mkPlayer(ri(1, 3), power(me()) - rnd(7, 11), ri(17, 19), { trait: 0 }); p.pot = Math.min(94, ovr(p) + ri(16, 26)); p.tr = 'promessa'; p.ctr = 0; G.free.push(p); PMAP.set(p.id, p); G.known[p.id] = 1;
-      return `Relatório entregue: ${p.n}, ${p.age} anos, ${POS[p.pos]} ${ovr(p)} com potencial ${p.pot}. Está sem clube, em Mercado › Contratar.`;
+      return `Relatório entregue: ${p.n}, ${p.age} anos, ${SP[p.sp].n.toLowerCase()} ${ovr(p)} com potencial ${p.pot}. Está sem clube, em Mercado › Contratar.`;
     }
   },
   torcida: {
@@ -806,7 +876,7 @@ function afterUserMatch(M) {
   G.board.conf = clamp(G.board.conf + dc, 0, 100);
   me().rep = clamp(me().rep + (out > 0 ? 0.4 : out < 0 ? -0.3 : 0), 5, 99);
   playEntry(e, res);
-  G.last = { e, res, out, gate, dc, mine: S.on.map(o => ({ id: o.p.id, n: o.p.n, pos: o.role, note: o.note, g: o.g, a: o.a, yc: o.yc, red: !!o.red, hurt: !!o.hurt })), opp: O.c.id, home: f.home, st: { sh: [M.h.sh, M.a.sh], sot: [M.h.sot, M.a.sot], pos: Math.round(100 * M.h.pos / (M.h.pos + M.a.pos)) }, goals: M.ev.filter(x => x.t === 'gol').map(x => ({ m: x.m, s: x.s, n: x.n })) };
+  G.last = { e, res, out, gate, dc, mine: S.on.map(o => ({ id: o.p.id, n: o.p.n, pos: o.role, c: o.code, note: o.note, g: o.g, a: o.a, yc: o.yc, red: !!o.red, hurt: !!o.hurt })), opp: O.c.id, home: f.home, st: { sh: [M.h.sh, M.a.sh], sot: [M.h.sot, M.a.sot], pos: Math.round(100 * M.h.pos / (M.h.pos + M.a.pos)) }, goals: M.ev.filter(x => x.t === 'gol').map(x => ({ m: x.m, s: x.s, n: x.n })) };
   return G.last;
 }
 
@@ -840,7 +910,7 @@ function endWeek() {
   if (G.money < 0) { G.board.conf = clamp(G.board.conf - 3, 0, 100); if (!G.flags.debt) { G.flags.debt = 1; note('🏦', 'Caixa no vermelho', 'O clube está devendo. A confiança da diretoria cai toda semana até o saldo voltar ao azul.'); } } else delete G.flags.debt;
   G.lastWk = G.wk; G.wk = { in: 0, out: 0 };
   // olheiros
-  for (const id of G.scoutQ) { const p = pl(id); if (p) { G.known[id] = 1; note('🔭', 'Relatório do olheiro', `${p.n} (${POS[p.pos]}, ${p.age} anos): nível ${ovr(p)}, potencial ${p.pot}${p.tr ? ', ' + TRAITS[p.tr].n.toLowerCase() : ''}.`); } }
+  for (const id of G.scoutQ) { const p = pl(id); if (p) { G.known[id] = 1; note('🔭', 'Relatório do olheiro', `${p.n} (${p.sp}, ${p.age} anos): nível ${ovr(p)}, potencial ${p.pot}${p.tr ? ', ' + TRAITS[p.tr].n.toLowerCase() : ''}.`); } }
   G.scoutQ = [];
   // mercado
   G.tries = {};
@@ -853,7 +923,7 @@ function endWeek() {
   advance();
   if (G.review || G.over) return;
   if (windowOpen()) {
-    for (const p of m.players) if (p.list && R() < 0.4) offerFor(p, rnd(0.8, 1.15));
+    for (const p of m.players) if (p.list && R() < offerOdds(p)) { offerFor(p, rnd(0.85, 1.2)); if (R() < 0.25) offerFor(p, rnd(0.9, 1.25)); }
     if (R() < 0.1) { const star = m.players.filter(p => !p.list && formOf(p) >= 6.8).sort((a, b) => valueOf(b) - valueOf(a))[ri(0, 2)]; if (star) offerFor(star, rnd(1.15, 1.5)); }
   }
   if (R() < 0.5) { const keys = Object.keys(EVENTS).filter(k => k !== 'offer'); for (let t = 0; t < 4; t++) { const k = pick(keys); if (G.flags.lastEv === k) continue; const it = EVENTS[k].make(); if (it) { ask(it.ic, it.t, it.x, it.o, k, it.data); G.flags.lastEv = k; break; } } }
@@ -913,8 +983,7 @@ function nextSeason() {
     }
     if (!mine) {
       c.base = clamp(c.base + rnd(-1, 1), 54, 84);
-      const n = [0, 1, 2, 3].map(r => c.players.filter(p => p.pos === r).length), want = [2, 6, 7, 5];
-      for (let r = 0; r < 4; r++) for (let i = n[r]; i < want[r]; i++) c.players.push(mkPlayer(r, c.base + rnd(-7, 2), ri(17, 22)));
+      for (const k in SQUAD_NEED) for (let i = c.players.filter(p => p.sp === k).length; i < SQUAD_NEED[k]; i++) c.players.push(mkPlayer(k, c.base + rnd(-7, 2), ri(17, 22)));
       let guard = 0; autoLineup(c);
       while (power(c) < c.base - 1 && guard++ < 60) { const p = pl2(c, pick(c.lineup)); if (p) { const k = KEY[p.pos]; p[k] = Math.min(99, p[k] + 2); p.pot = Math.max(p.pot, ovr(p)); } }
       guard = 0;
