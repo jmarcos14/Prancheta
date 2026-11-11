@@ -1,0 +1,16 @@
+{
+  "appId": "br.prancheta.manager",
+  "appName": "Prancheta",
+  "webDir": "www",
+  "backgroundColor": "#0a2b1f",
+  "android": {
+    "allowMixedContent": false
+  },
+  "plugins": {
+    "SystemBars": {
+      "insetsHandling": "css",
+      "style": "DARK",
+      "initialViewportFitValueHint": "cover"
+    }
+  }
+}

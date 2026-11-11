@@ -2,7 +2,7 @@
 <html lang="pt-BR">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#0a2b1f">
 <title>Prancheta Manager</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -18,6 +18,8 @@
   --frame: #d5dacf; --card-sh: 0 1px 0 rgba(0, 0, 0, 0.18), 0 14px 26px -18px rgba(0, 0, 0, 0.75);
   --pen-fill: #e5484d; --duel: #14251c; --seg-on: #f1f4ec; --edge: transparent; --wait-sh: #b9c1b0;
   --t-red: #ffe1df; --t-red-ink: #9c1c20; --t-ok: #d5f1e0; --t-ok-ink: #0f6b3a; --t-blue: #dce7ff; --t-blue-ink: #1c459c; --t-yel: #ffeaa6; --t-yel-ink: #5c4500;
+  /* áreas seguras: o app Android injeta --safe-area-inset-*; no navegador vale env() */
+  --sat: var(--safe-area-inset-top, env(safe-area-inset-top, 0px)); --sab: var(--safe-area-inset-bottom, env(safe-area-inset-bottom, 0px));
   --r0: #ffb224; --r1: #4f8cff; --r2: #f6f3ea; --r3: #ff5b4f;
   --display: 'Sofia Sans Extra Condensed', 'Arial Narrow', Impact, sans-serif;
   --body: 'Sofia Sans', system-ui, -apple-system, 'Segoe UI', sans-serif;
@@ -61,7 +63,7 @@ button:disabled { opacity: 0.45; cursor: default; }
 .num { font-variant-numeric: tabular-nums; }
 
 /* ---------- cabeçalho ---------- */
-#top { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 10px 14px 8px; color: var(--chalk); }
+#top { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: calc(10px + var(--sat)) 14px 8px; color: var(--chalk); }
 .top-l { display: flex; align-items: center; gap: 10px; min-width: 0; }
 .top-l b { display: block; font-family: var(--display); font-weight: 800; font-size: 24px; line-height: 1; letter-spacing: 0.02em; text-transform: uppercase; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .top-l small { color: var(--chalk-2); font-size: 12.5px; font-weight: 600; }
@@ -129,7 +131,7 @@ h3 { font-size: 12px; font-weight: 800; letter-spacing: 0.08em; text-transform: 
 .chip.board.on, .chips.scroll .chip.on { background: var(--magnet); color: var(--magnet-ink); }
 
 /* ---------- abas ---------- */
-#tabs { display: grid; grid-template-columns: repeat(5, 1fr); background: var(--board-2); border-top: 2px solid rgba(238, 244, 234, 0.16); padding: 6px 6px calc(6px + env(safe-area-inset-bottom, 0px)); }
+#tabs { display: grid; grid-template-columns: repeat(5, 1fr); background: var(--board-2); border-top: 2px solid rgba(238, 244, 234, 0.16); padding: 6px 6px calc(6px + var(--sab)); }
 #tabs button { display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 5px 0 3px; color: var(--chalk-2); font-size: 11.5px; font-weight: 700; border-radius: 10px; position: relative; }
 #tabs button svg { width: 24px; height: 24px; fill: none; stroke: currentColor; stroke-width: 1.9; stroke-linecap: round; stroke-linejoin: round; }
 #tabs button.on { color: var(--magnet); background: rgba(255, 210, 63, 0.12); }
@@ -263,7 +265,7 @@ tr.dn td.z::before { background: var(--pen); } tr.ch td.z::before { background: 
 #sheet { position: fixed; inset: 0; z-index: 30; display: none; }
 #sheet.on { display: block; }
 #sheet .bg { position: absolute; inset: 0; background: rgba(4, 16, 11, 0.62); }
-#sheetBox { position: absolute; left: 50%; bottom: 0; transform: translateX(-50%); width: 100%; max-width: 480px; max-height: 88%; overflow-y: auto; background: var(--paper); border-radius: 18px 18px 0 0; box-shadow: inset 0 1px 0 var(--edge); padding: 16px 14px calc(18px + env(safe-area-inset-bottom, 0px)); animation: up 0.2s ease-out; }
+#sheetBox { position: absolute; left: 50%; bottom: 0; transform: translateX(-50%); width: 100%; max-width: 480px; max-height: 88%; overflow-y: auto; background: var(--paper); border-radius: 18px 18px 0 0; box-shadow: inset 0 1px 0 var(--edge); padding: 16px 14px calc(18px + var(--sab)); animation: up 0.2s ease-out; }
 #sheetBox::before { content: ''; display: block; width: 40px; height: 4px; border-radius: 2px; background: var(--rule); margin: -6px auto 10px; }
 #sheetBox .x { position: absolute; top: 8px; right: 8px; width: 40px; height: 40px; border-radius: 50%; font-size: 24px; color: var(--ink-2); }
 @keyframes up { from { transform: translate(-50%, 24px); opacity: 0.6; } }
@@ -279,8 +281,8 @@ tr.dn td.z::before { background: var(--pen); } tr.ch td.z::before { background: 
 #ov { position: fixed; inset: 0; z-index: 20; display: none; background: var(--board-2); }
 #ov.on { display: block; }
 .ovin { max-width: 480px; height: 100%; margin: 0 auto; display: flex; flex-direction: column; background: repeating-linear-gradient(180deg, var(--board) 0 64px, var(--board-3) 64px 128px); overflow: hidden; }
-.ovscroll { flex: 1; overflow-y: auto; padding: 16px 14px 24px; display: flex; flex-direction: column; gap: 12px; }
-.ovfoot { padding: 10px 14px calc(12px + env(safe-area-inset-bottom, 0px)); background: var(--board-2); border-top: 2px solid rgba(238, 244, 234, 0.16); }
+.ovscroll { flex: 1; overflow-y: auto; padding: calc(16px + var(--sat)) 14px 24px; display: flex; flex-direction: column; gap: 12px; }
+.ovfoot { padding: 10px 14px calc(12px + var(--sab)); background: var(--board-2); border-top: 2px solid rgba(238, 244, 234, 0.16); }
 .title { flex: 1; display: flex; flex-direction: column; justify-content: center; gap: 22px; padding: 24px 22px; color: var(--chalk); }
 .clipboard { position: relative; background: var(--paper); color: var(--ink); border-radius: 14px; padding: 46px 20px 22px; box-shadow: 0 6px 0 rgba(0, 0, 0, 0.35), inset 0 0 0 1px var(--edge); transform: rotate(-1.2deg); }
 .clipboard::before { content: ''; position: absolute; top: -14px; left: 50%; transform: translateX(-50%); width: 120px; height: 40px; border-radius: 9px 9px 5px 5px; background: linear-gradient(#cfd5d0, #8e9892); box-shadow: 0 3px 0 rgba(0, 0, 0, 0.3), inset 0 2px 0 rgba(255, 255, 255, 0.6); }
@@ -320,7 +322,7 @@ tr.dn td.z::before { background: var(--pen); } tr.ch td.z::before { background: 
 .mctl { display: grid; grid-template-columns: 52px 60px 1fr 76px; gap: 8px; }
 .mctl .btn { background: rgba(255, 255, 255, 0.1); color: var(--chalk); padding: 0 6px; min-height: 48px; }
 .mctl .btn.main { background: var(--magnet); color: var(--magnet-ink); font-family: var(--display); font-weight: 900; font-size: 22px; letter-spacing: 0.04em; text-transform: uppercase; }
-#toast { position: fixed; left: 50%; bottom: 92px; transform: translate(-50%, 20px); z-index: 40; max-width: min(440px, 92vw); padding: 11px 16px; border-radius: 12px; background: var(--ink); color: var(--paper); font-weight: 700; font-size: 14px; opacity: 0; pointer-events: none; transition: opacity 0.2s, transform 0.2s; text-align: center; box-shadow: 0 6px 18px rgba(0, 0, 0, 0.4); }
+#toast { position: fixed; left: 50%; bottom: calc(92px + var(--sab)); transform: translate(-50%, 20px); z-index: 40; max-width: min(440px, 92vw); padding: 11px 16px; border-radius: 12px; background: var(--ink); color: var(--paper); font-weight: 700; font-size: 14px; opacity: 0; pointer-events: none; transition: opacity 0.2s, transform 0.2s; text-align: center; box-shadow: 0 6px 18px rgba(0, 0, 0, 0.4); }
 #toast.on { opacity: 1; transform: translate(-50%, 0); }
 @media (prefers-reduced-motion: reduce) { * { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; } }
 
@@ -331,7 +333,7 @@ tr.dn td.z::before { background: var(--pen); } tr.ch td.z::before { background: 
 #labels { position: absolute; inset: 0; pointer-events: none; overflow: hidden; z-index: 3; }
 .flt { position: absolute; left: 0; top: 0; white-space: nowrap; font-family: var(--display); font-weight: 800; font-size: 20px; letter-spacing: 0.02em; color: #fff; text-shadow: 0 2px 8px rgba(0, 0, 0, 0.7), 0 0 2px rgba(0, 0, 0, 0.9); will-change: transform, opacity; }
 .flt.amber { color: #ffd23f; } .flt.cool { color: #9fd1ff; }
-#mhud { position: absolute; top: 0; left: 0; right: 0; z-index: 5; padding: 10px 12px 22px; display: flex; flex-direction: column; align-items: center; gap: 3px; background: linear-gradient(to bottom, rgba(4, 13, 10, 0.82), rgba(4, 13, 10, 0)); pointer-events: none; }
+#mhud { position: absolute; top: 0; left: 0; right: 0; z-index: 5; padding: calc(10px + var(--sat)) 12px 22px; display: flex; flex-direction: column; align-items: center; gap: 3px; background: linear-gradient(to bottom, rgba(4, 13, 10, 0.82), rgba(4, 13, 10, 0)); pointer-events: none; }
 .mscore { display: grid; grid-template-columns: 1fr auto auto auto 1fr; align-items: center; gap: 10px; width: 100%; max-width: 420px; font-family: var(--display); }
 .mscore .mt { display: flex; align-items: center; gap: 7px; font-size: 22px; font-weight: 800; letter-spacing: 0.03em; }
 .mscore .mt:first-child { justify-content: flex-end; }
@@ -340,11 +342,11 @@ tr.dn td.z::before { background: var(--pen); } tr.ch td.z::before { background: 
 @keyframes pop { 0% { transform: scale(1.8); color: #ffd23f; } 100% { transform: scale(1); } }
 .mscore em { font-style: normal; font-family: var(--body); font-weight: 800; font-size: 13px; color: #2b2100; background: #ffd23f; border-radius: 9px; padding: 2px 8px; min-width: 42px; text-align: center; }
 .mcomp { font-size: 12px; font-weight: 700; color: rgba(241, 245, 236, 0.66); }
-#ticker { position: absolute; left: 10px; top: 92px; z-index: 5; display: flex; flex-direction: column; gap: 4px; pointer-events: none; max-width: min(68vw, 330px); }
+#ticker { position: absolute; left: 10px; top: calc(92px + var(--sat)); z-index: 5; display: flex; flex-direction: column; gap: 4px; pointer-events: none; max-width: min(68vw, 330px); }
 #ticker div { background: rgba(4, 13, 10, 0.72); border-radius: 9px; padding: 5px 9px; font-size: 13px; font-weight: 600; line-height: 1.25; backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px); animation: tick 0.35s ease-out; transition: opacity 0.6s; }
 #ticker div b { font-family: var(--display); font-weight: 800; font-size: 15px; color: #ffd23f; margin-right: 5px; }
 @keyframes tick { from { opacity: 0; transform: translateX(-10px); } }
-#mini { position: absolute; right: 10px; top: 92px; z-index: 5; width: 62px; height: 96px; border-radius: 8px; box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4); }
+#mini { position: absolute; right: 10px; top: calc(92px + var(--sat)); z-index: 5; width: 62px; height: 96px; border-radius: 8px; box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4); }
 #gtoast { position: absolute; inset: 0; z-index: 8; display: grid; place-items: center; pointer-events: none; }
 #gtoast .t { text-align: center; opacity: 0; padding: 0 12px; }
 #gtoast .t.on { animation: gtoast 1.9s cubic-bezier(0.2, 0.9, 0.3, 1) forwards; }
@@ -352,7 +354,7 @@ tr.dn td.z::before { background: var(--pen); } tr.ch td.z::before { background: 
 #gtoast p { font-family: var(--display); font-weight: 800; font-size: 24px; color: #fff; text-shadow: 0 2px 10px rgba(0, 0, 0, 0.8); margin-top: 6px; }
 #gtoast .t.soft h2 { font-size: clamp(44px, 14vw, 76px); }
 @keyframes gtoast { 0% { opacity: 0; transform: scale(0.6); } 12% { opacity: 1; transform: scale(1.06); } 22% { transform: scale(1); } 78% { opacity: 1; transform: scale(1); } 100% { opacity: 0; transform: scale(1.05); } }
-#mbar { position: absolute; left: 0; right: 0; bottom: 0; z-index: 6; display: flex; gap: 6px; justify-content: center; padding: 22px 10px calc(12px + env(safe-area-inset-bottom, 0px)); background: linear-gradient(to top, rgba(4, 13, 10, 0.88), rgba(4, 13, 10, 0)); }
+#mbar { position: absolute; left: 0; right: 0; bottom: 0; z-index: 6; display: flex; gap: 6px; justify-content: center; padding: 22px 10px calc(12px + var(--sab)); background: linear-gradient(to top, rgba(4, 13, 10, 0.88), rgba(4, 13, 10, 0)); }
 .gb { display: grid; place-items: center; height: 46px; min-width: 40px; padding: 0 9px; border-radius: 12px; background: rgba(241, 245, 236, 0.14); color: #f1f5ec; font-weight: 800; font-size: 14px; }
 .gb.on { background: #f1f5ec; color: #0f2219; }
 .gb.main { flex: 1; max-width: 200px; padding: 0 6px; background: #ffd23f; color: #2b2100; font-family: var(--display); font-weight: 900; font-size: 20px; letter-spacing: 0.02em; text-transform: uppercase; }
@@ -391,6 +393,18 @@ tr.dn td.z::before { background: var(--pen); } tr.ch td.z::before { background: 
 .txr .pos { color: var(--ok); } .txr .neg { color: var(--pen); }
 .txk { flex: none; width: 66px; text-align: center; padding: 3px 0; border-radius: 6px; font-size: 11px; font-weight: 800; letter-spacing: 0.05em; text-transform: uppercase; background: var(--paper-2); }
 .txk.in { background: var(--t-ok); color: var(--t-ok-ink); } .txk.out { background: var(--t-blue); color: var(--t-blue-ink); }
+
+/* ---------- celular: sem seleção de texto nem menu de toque longo ---------- */
+#app, #stage, #ov, #sheet { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
+#app input, #ov input, #sheet input { -webkit-user-select: text; user-select: text; }
+.ovin > .sb { padding-top: calc(10px + var(--sat)); }
+.title { padding-top: calc(24px + var(--sat)); padding-bottom: calc(24px + var(--sab)); }
+.optrow { display: flex; align-items: center; gap: 12px; }
+.optrow > span { flex: 1; font-weight: 700; }
+.optrow .seg { width: 170px; flex: none; }
+.titlebar { display: flex; justify-content: center; }
+.titlebar .chip { gap: 6px; min-height: 36px; padding: 0 14px; }
+.titlebar .chip svg { width: 18px; height: 18px; }
 
 </style>
 </head>
@@ -1427,13 +1441,13 @@ function nextSeason() {
 const pl2 = (c, id) => c.players.find(p => p.id === id);
 
 // =====================================================================
-// PARTIDA EM 3D — visual herdado do Prancheta original (three.js):
-// campo, bonecos, bola, partículas, câmera e som sintetizado.
-// Uma "direção de cena" anima os lances que o motor de regras decide.
+// SOM — tudo sintetizado com Web Audio (torcida, apito, chute e interface)
 // =====================================================================
 const SFX = (() => {
   let ctx = null, master = null, crowdGain = null, crowdBand = null, chantGain = null, drumBus = null, noiseBuf = null, brownBuf = null;
-  let enabled = (() => { try { return localStorage.getItem('prancheta2.som') !== '0'; } catch (e) { return true; } })();
+  const get = (k, d) => { try { const v = localStorage.getItem(k); return v == null ? d : v; } catch (e) { return d; } };
+  let enabled = get('prancheta2.som', '1') !== '0', vol = +get('prancheta2.vol', '0.8');
+  const gainOf = () => (enabled ? 0.85 * vol : 0);
   let level = 0.3, drums = 0, nextBeat = 0, beat = 0, lastKick = 0;
   const now = () => ctx.currentTime;
   function makeNoise(brown) {
@@ -1442,10 +1456,12 @@ const SFX = (() => {
     return buf;
   }
   function init() {
-    if (ctx) { if (ctx.state === 'suspended') ctx.resume(); return; }
+    if (ctx) { if (ctx.state === 'suspended' && !document.hidden) ctx.resume(); return; }
     const AC = window.AudioContext || window.webkitAudioContext; if (!AC) return;
+    // iPhone: toca mesmo com a chave de silêncio (sessão de reprodução)
+    try { if (navigator.audioSession) navigator.audioSession.type = 'playback'; } catch (e) { /* sem sessão de áudio */ }
     try { ctx = new AC(); } catch (e) { ctx = null; return; }
-    master = ctx.createGain(); master.gain.value = enabled ? 0.85 : 0;
+    master = ctx.createGain(); master.gain.value = gainOf();
     const comp = ctx.createDynamicsCompressor(); comp.threshold.value = -14; comp.ratio.value = 4;
     master.connect(comp); comp.connect(ctx.destination);
     noiseBuf = makeNoise(false); brownBuf = makeNoise(true);
@@ -1478,6 +1494,7 @@ const SFX = (() => {
     const g = ctx.createGain(); env(g, t, a, peak, hold, rel);
     o.connect(g); g.connect(dest || master); o.start(t); o.stop(t + a + hold + rel + 0.05);
   }
+  const ok = () => !!ctx && enabled && ctx.state === 'running';
   function scheduleDrums() {
     const spb = 60 / 116 / 4;
     while (nextBeat < now() + 0.25) {
@@ -1494,7 +1511,11 @@ const SFX = (() => {
   const api = {
     init,
     get enabled() { return enabled; },
-    setEnabled(v) { enabled = v; try { localStorage.setItem('prancheta2.som', v ? '1' : '0'); } catch (e) { /* só nesta visita */ } if (master) master.gain.setTargetAtTime(v ? 0.85 : 0, now(), 0.05); },
+    setEnabled(v) { enabled = v; try { localStorage.setItem('prancheta2.som', v ? '1' : '0'); } catch (e) { /* só nesta visita */ } if (master) master.gain.setTargetAtTime(gainOf(), now(), 0.05); },
+    get volume() { return vol; },
+    setVolume(v) { vol = clamp(v, 0, 1); try { localStorage.setItem('prancheta2.vol', String(vol)); } catch (e) { /* só nesta visita */ } if (master) master.gain.setTargetAtTime(gainOf(), now(), 0.05); },
+    pause() { if (ctx && ctx.state === 'running') ctx.suspend(); },
+    resume() { if (ctx && ctx.state === 'suspended') ctx.resume(); },
     update(dt, lvl, playing, drumLvl) {
       if (!ctx) return;
       level += (lvl - level) * Math.min(1, dt * 1.6); drums += ((drumLvl || 0) - drums) * Math.min(1, dt * 1.2);
@@ -1525,11 +1546,53 @@ const SFX = (() => {
     boo() { if (!ctx) return; const t = now(); noiseHit(t, 'bandpass', 240, 3.5, 0.22, 0.2, 0.9, 0.7); tone(t, 'sawtooth', 118, 105, 0.03, 0.2, 0.9, 0.6); },
     horn() { if (!ctx) return; [0, 0.75].forEach(d => { const t = now() + d; const lp = ctx.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 1900; lp.connect(master); [233, 294, 349].forEach(f => tone(t, 'sawtooth', f, 0, 0.06, 0.03, 0.5, 0.15, lp)); }); },
     cheer(s = 0.5) { if (ctx) api.roar(s, 0.5); },
+
+    // ---------- sons da interface ----------
+    // todos sintetizados na hora: nenhum arquivo de áudio, funciona offline
+    tap() { if (!ok()) return; const t = now(); tone(t, 'triangle', 1150, 820, 0.05, 0.002, 0.004, 0.045); },
+    tab() { if (!ok()) return; const t = now(); tone(t, 'sine', 660, 0, 0.06, 0.002, 0.02, 0.05); tone(t + 0.045, 'sine', 990, 0, 0.06, 0.002, 0.02, 0.07); },
+    select() { if (!ok()) return; tone(now(), 'sine', 820, 1240, 0.06, 0.003, 0.02, 0.06); },
+    open() { if (!ok()) return; const f = noiseHit(now(), 'bandpass', 500, 1.2, 0.05, 0.03, 0.06, 0.09); f.frequency.setValueAtTime(500, now()); f.frequency.exponentialRampToValueAtTime(1800, now() + 0.16); },
+    close() { if (!ok()) return; const f = noiseHit(now(), 'bandpass', 1600, 1.2, 0.04, 0.02, 0.04, 0.08); f.frequency.setValueAtTime(1600, now()); f.frequency.exponentialRampToValueAtTime(450, now() + 0.13); },
+    pick() { if (!ok()) return; const t = now(); tone(t, 'sine', 280, 720, 0.12, 0.004, 0.03, 0.07); },
+    drop() { if (!ok()) return; const t = now(); tone(t, 'sine', 190, 85, 0.3, 0.002, 0.01, 0.1); noiseHit(t, 'highpass', 2600, 0.8, 0.09, 0.001, 0.004, 0.03); },
+    coin() { if (!ok()) return; const t = now(); [[1318, 0], [1760, 0.07]].forEach(([f, d]) => { tone(t + d, 'square', f, 0, 0.035, 0.002, 0.03, 0.26); tone(t + d, 'sine', f * 2, 0, 0.03, 0.002, 0.02, 0.2); }); },
+    pay() { if (!ok()) return; const t = now(); tone(t, 'triangle', 784, 0, 0.07, 0.003, 0.04, 0.08); tone(t + 0.08, 'triangle', 523, 0, 0.07, 0.003, 0.05, 0.16); },
+    ok() { if (!ok()) return; const t = now(); [523, 659, 784].forEach((f, i) => tone(t + i * 0.07, 'triangle', f, 0, 0.08, 0.004, 0.03, i === 2 ? 0.3 : 0.08)); },
+    err() { if (!ok()) return; const t = now(); const lp = ctx.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 1200; lp.connect(master); tone(t, 'square', 196, 0, 0.06, 0.004, 0.06, 0.04, lp); tone(t + 0.13, 'square', 185, 0, 0.06, 0.004, 0.09, 0.06, lp); },
+    notify() { if (!ok()) return; const t = now(); tone(t, 'sine', 988, 0, 0.07, 0.003, 0.02, 0.6); tone(t, 'sine', 1976, 0, 0.025, 0.003, 0.02, 0.4); tone(t + 0.12, 'sine', 1319, 0, 0.06, 0.003, 0.02, 0.7); },
+    win() {
+      if (!ok()) return; const t = now();
+      [523, 659, 784, 1047].forEach((f, i) => { tone(t + i * 0.11, 'triangle', f, 0, 0.08, 0.004, i === 3 ? 0.28 : 0.05, i === 3 ? 0.5 : 0.08); tone(t + i * 0.11, 'sine', f / 2, 0, 0.05, 0.004, 0.05, 0.1); });
+      api.roar(0.25, 0.6);
+    },
+    draw() { if (!ok()) return; const t = now(); tone(t, 'triangle', 587, 0, 0.07, 0.004, 0.08, 0.1); tone(t + 0.16, 'triangle', 523, 0, 0.07, 0.004, 0.12, 0.3); },
+    lose() {
+      if (!ok()) return; const t = now(), lp = ctx.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 900; lp.connect(master);
+      [392, 349, 330, 294].forEach((f, i) => tone(t + i * 0.17, 'sawtooth', f, 0, 0.05, 0.01, i === 3 ? 0.3 : 0.08, i === 3 ? 0.5 : 0.08, lp));
+    },
+    fanfare() {
+      if (!ok()) return; const t = now(), lp = ctx.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 2200; lp.connect(master);
+      [[392, 0, 0.07], [392, 0.13, 0.07], [392, 0.26, 0.07], [523, 0.4, 0.22], [659, 0.68, 0.1], [784, 0.84, 0.6]].forEach(([f, d, h]) => { tone(t + d, 'sawtooth', f, 0, 0.05, 0.01, h, 0.18, lp); tone(t + d, 'sawtooth', f * 1.5, 0, 0.025, 0.01, h, 0.18, lp); });
+      api.roar(0.5, 1.4);
+    },
+    fired() {
+      if (!ok()) return; const t = now(), lp = ctx.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 800; lp.connect(master);
+      [[392, 370], [370, 349], [349, 330]].forEach(([a, b], i) => tone(t + i * 0.36, 'sawtooth', a, b, 0.07, 0.02, 0.24, 0.06, lp));
+      const o = ctx.createOscillator(), g = ctx.createGain(), v = ctx.createOscillator(), vg = ctx.createGain();
+      o.type = 'sawtooth'; o.frequency.value = 311; v.frequency.value = 6; vg.gain.value = 9; v.connect(vg); vg.connect(o.frequency);
+      env(g, t + 1.08, 0.02, 0.07, 0.9, 0.3); o.connect(g); g.connect(lp); o.start(t + 1.08); v.start(t + 1.08); o.stop(t + 2.4); v.stop(t + 2.4);
+    },
     goal(mine, home) { if (!ctx) return; if (mine) { api.roar(home ? 1 : 0.55, 2.8); if (home) api.horn(); drums = 1; } else if (home) api.groan(); else { api.roar(0.9, 2.4); api.horn(); } }
   };
   return api;
 })();
 
+// =====================================================================
+// PARTIDA EM 3D — visual herdado do Prancheta original (three.js):
+// campo, bonecos, bola, partículas, câmera e som sintetizado.
+// Uma "direção de cena" anima os lances que o motor de regras decide.
+// =====================================================================
 const GL = (() => {
   const TAU = Math.PI * 2, lerp = (a, b, t) => a + (b - a) * t;
   const easeOut = t => 1 - Math.pow(1 - t, 3);
@@ -2208,7 +2271,7 @@ const GL = (() => {
     for (let i = 0; i < 3; i++) ring(tx, gy, i === 1 ? '#ffffff' : col, 2, 22 + i * 7, 0.9 + i * 0.15, i * 0.12);
     if (my) confetti(tx, gy - 2 * dir, [col, '#ffffff', '#ffd23f', '#3ee8d0'], 170, 28);
     V.shake = Math.max(V.shake, reduceMotion ? 0.3 : 1.2); V.mood = 3;
-    try { if (navigator.vibrate) navigator.vibrate(my ? [30, 40, 60] : 40); } catch (x) { /* sem vibração */ }
+    HAP.goal(my);
     big('Gol!', `${e.n}, ${e.m}'`, my ? '#ffffff' : col);
     tick(e.m, '⚽ ' + e.x);
     SFX.goal(my, V.home);
@@ -2534,6 +2597,65 @@ const GL = (() => {
 })();
 
 // =====================================================================
+// APP — integração com o celular
+// No Android (Capacitor) usa vibração nativa e o botão Voltar; no navegador
+// funciona como PWA (instalável, offline). Fora desses casos não faz nada.
+// =====================================================================
+const NATIVE = !!(window.Capacitor && typeof window.Capacitor.isNativePlatform === 'function' && window.Capacitor.isNativePlatform());
+const NAT = {};
+if (NATIVE && typeof window.Capacitor.registerPlugin === 'function') {
+  try { NAT.App = window.Capacitor.registerPlugin('App'); NAT.Haptics = window.Capacitor.registerPlugin('Haptics'); } catch (e) { /* sem plugins nativos */ }
+}
+// vibração: nativa no app, navigator.vibrate no navegador (o iPhone não vibra pela web)
+const HAP = (() => {
+  let on = (() => { try { return localStorage.getItem('prancheta2.vib') !== '0'; } catch (e) { return true; } })();
+  const vib = p => { try { if (navigator.vibrate) navigator.vibrate(p); } catch (e) { /* sem vibração */ } };
+  const call = (fn, fallback) => {
+    if (!on) return;
+    if (NAT.Haptics) { try { Promise.resolve(fn(NAT.Haptics)).catch(() => {}); } catch (e) { /* plugin indisponível */ } } else vib(fallback);
+  };
+  return {
+    get on() { return on; },
+    get can() { return !!NAT.Haptics || 'vibrate' in navigator; },
+    set(v) { on = v; try { localStorage.setItem('prancheta2.vib', v ? '1' : '0'); } catch (e) { /* só nesta visita */ } if (v) call(h => h.impact({ style: 'MEDIUM' }), 20); },
+    tap: () => call(h => h.impact({ style: 'LIGHT' }), 8),
+    med: () => call(h => h.impact({ style: 'MEDIUM' }), 16),
+    ok: () => call(h => h.notification({ type: 'SUCCESS' }), [12, 50, 20]),
+    err: () => call(h => h.notification({ type: 'ERROR' }), [30, 40, 30]),
+    goal: mine => call(h => (mine ? h.notification({ type: 'SUCCESS' }).then(() => h.impact({ style: 'HEAVY' })) : h.impact({ style: 'MEDIUM' })), mine ? [30, 40, 60] : 40)
+  };
+})();
+// botão Voltar do Android: fecha o que estiver aberto antes de sair
+function appBack() {
+  if (U.sheet) return closeSheet();
+  if (U.M && !U.M.done) return ACT.mBoard();
+  if (U.M) return;
+  if ($('#ov').classList.contains('on')) {
+    if ($('#ov [data-a="crGo"]')) return showTitle();
+    if ($('#ov .wordmark') && NAT.App) return NAT.App.minimizeApp();
+    return;
+  }
+  if (U.tab !== 'home') return ACT.go({ t: 'home' });
+  if (NAT.App) NAT.App.minimizeApp();
+}
+if (NAT.App) { try { NAT.App.addListener('backButton', appBack); } catch (e) { /* sem botão Voltar */ } }
+// ao sair do app: salva, pausa a partida e silencia; ao voltar, retoma o som
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden) {
+    if (typeof G !== 'undefined' && G) save();
+    if (U.M && !U.M.done && !U.sheet) ACT.mBoard();
+    SFX.pause();
+  } else SFX.resume();
+});
+addEventListener('pagehide', () => { if (typeof G !== 'undefined' && G) save(); });
+// PWA: funciona offline e pode ser instalado pelo navegador
+const INSTALL = { evt: null };
+addEventListener('beforeinstallprompt', e => { e.preventDefault(); INSTALL.evt = e; });
+if (!NATIVE && 'serviceWorker' in navigator && document.querySelector('link[rel="manifest"]') && /^https?:$/.test(location.protocol)) {
+  addEventListener('load', () => { navigator.serviceWorker.register('sw.js').catch(() => { /* sem modo offline */ }); });
+}
+
+// =====================================================================
 // PRANCHETA — interface
 // =====================================================================
 const $ = s => document.querySelector(s);
@@ -2751,8 +2873,10 @@ VIEW.clube = () => {
     h += `<div class="card stack"><div class="head"><h2><span>Diretoria</span></h2><small>meta: até ${G.board.obj.pos}º</small></div><b>${G.board.obj.t}</b><div class="meter ${c < 30 ? 'low' : c >= 70 ? 'good' : ''}"><i style="width:${c}%"></i></div><div>${kv('Confiança', Math.round(c) + '%')}${kv('Reputação do clube', Math.round(m.rep) + ' de 100')}${kv('Temporada', G.season + 'ª')}</div><p class="muted">Reputação atrai patrocínio, público e jogadores melhores.</p></div>`;
     h += `<div class="card"><div class="head"><h2><span>Sala de troféus</span></h2></div>${G.trophies.length ? G.trophies.map(t => `<p class="hand">★ ${esc(t)}</p>`).join('') : '<p class="muted">Vazia por enquanto.</p>'}</div>`;
     h += `<div class="card flat"><div class="head pad"><h2><span>Histórico</span></h2></div>${G.hist.length ? `<table><tr><th class="l" style="padding-left:14px">Ano</th><th>Divisão</th><th>Posição</th><th>Pontos</th></tr>${G.hist.map(x => `<tr><td class="l" style="padding-left:14px">${x.year}</td><td>${DIV_N[x.div]}</td><td>${x.pos}º</td><td>${x.pts}</td></tr>`).join('')}</table>` : '<p class="muted pad">A primeira temporada ainda está em andamento.</p>'}</div>`;
+    const onoff = (act, on) => `<div class="seg inpaper">${[['1', 'Ligado'], ['0', 'Desligado']].map(([v, l]) => `<button class="${(on ? '1' : '0') === v ? 'on' : ''}" data-a="${act}" data-v="${v}">${l}</button>`).join('')}</div>`;
+    h += `<div class="card stack"><div class="head"><h2><span>Som e vibração</span></h2></div><div class="optrow"><span>Efeitos sonoros</span>${onoff('snd', SFX.enabled)}</div><div><label for="vol">Volume</label><input type="range" id="vol" min="0" max="100" step="5" value="${Math.round(SFX.volume * 100)}" ${SFX.enabled ? '' : 'disabled'}></div>${HAP.can ? `<div class="optrow"><span>Vibração</span>${onoff('vib', HAP.on)}</div>` : ''}${INSTALL.evt ? '<button class="btn" data-a="install">Instalar na tela inicial</button>' : ''}</div>`;
     h += `<div class="card stack"><div class="head"><h2><span>Aparência</span></h2></div><div class="seg inpaper">${[['', 'Automático'], ['claro', 'Claro'], ['escuro', 'Escuro']].map(([v, l]) => `<button class="${U.tema === v ? 'on' : ''}" data-a="tema" data-v="${v}">${l}</button>`).join('')}</div><p class="muted">Automático segue o tema do seu aparelho.</p></div>`;
-    h += '<button class="btn ghost" style="color:var(--chalk);box-shadow:inset 0 0 0 1.5px var(--chalk-2)" data-a="wipe">Encerrar carreira e começar outra</button><p class="hint">O jogo salva sozinho neste navegador a cada semana.</p>';
+    h += `<button class="btn ghost" style="color:var(--chalk);box-shadow:inset 0 0 0 1.5px var(--chalk-2)" data-a="wipe">Encerrar carreira e começar outra</button><p class="hint">O jogo salva sozinho ${NATIVE ? 'no aparelho' : 'neste navegador'} a cada semana.</p>`;
   }
   return h;
 };
@@ -2795,7 +2919,7 @@ VIEW.tab = () => {
 };
 
 // ---------- folhas ----------
-function openSheet(html) { $('#sheetBox').innerHTML = '<button class="x" data-a="close" aria-label="Fechar">×</button>' + html; $('#sheet').classList.add('on'); $('#sheetBox').scrollTop = 0; U.sheet = true; }
+function openSheet(html) { if (!U.sheet) SFX.open(); $('#sheetBox').innerHTML = '<button class="x" data-a="close" aria-label="Fechar">×</button>' + html; $('#sheet').classList.add('on'); $('#sheetBox').scrollTop = 0; U.sheet = true; }
 function closeSheet() {
   $('#sheet').classList.remove('on'); U.sheet = false; U.neg = null; U.subOut = null;
   const M = U.M;
@@ -2907,7 +3031,7 @@ function startMatch() {
     <ol class="feed" id="mFeed"><li class="sys"><b>0'</b><span>${entryLabel(f.e)}. Bola rolando ${f.home ? 'em casa' : 'no campo do ' + esc(o.name)}. Você ataca para a direita.</span></li></ol>
     <div class="ovfoot"><div class="mctl" id="mCtl"><button class="btn" data-a="mPause" id="mPauseB" aria-label="Pausar">❚❚</button><button class="btn" data-a="mSpeed" id="mSpeedB" aria-label="Velocidade">${U.speed}×</button><button class="btn main" data-a="mBoard">Prancheta</button><button class="btn" data-a="mSkip">Pular</button></div></div></div>`;
   $('#ov').classList.add('on');
-  drawDots(); schedule(700);
+  SFX.whistle(1); drawDots(); schedule(700);
 }
 function schedule(ms) { clearTimeout(U.timer); U.timer = setTimeout(tick, ms); }
 function drawDots() {
@@ -2933,7 +3057,7 @@ function paintMatch(news) {
     li.innerHTML = `<b>${e.m}'</b><span>${e.s ? `<span class="tag">${esc((mine ? my : op).c.abbr)}</span> ` : ''}${EV_IC[e.t] || ''}${esc(e.x)}</span>`;
     feed.prepend(li);
     if (['gol', 'def', 'fora', 'trave'].includes(e.t)) { ball.style.left = (mine ? (e.t === 'gol' ? 98 : rnd(84, 92)) : (e.t === 'gol' ? 2 : rnd(8, 16))) + '%'; ball.style.top = rnd(36, 64) + '%'; moved = true; }
-    if (e.t === 'gol') { const fx = $('#mFx'); fx.textContent = mine ? 'GOL!' : 'Gol do ' + op.c.abbr; fx.className = 'goalfx ' + (mine ? '' : 'them'); void fx.offsetWidth; fx.classList.add('go'); try { if (navigator.vibrate) navigator.vibrate(mine ? [60, 40, 120] : 80); } catch (x) { /* sem vibração */ } }
+    if (e.t === 'gol') { const fx = $('#mFx'); fx.textContent = mine ? 'GOL!' : 'Gol do ' + op.c.abbr; fx.className = 'goalfx ' + (mine ? '' : 'them'); void fx.offsetWidth; fx.classList.add('go'); HAP.goal(mine); SFX.goal(mine, U.my.home); }
     if (e.t === 'sub' || e.t === 'red' || e.t === 'inj') dots = true;
   }
   if (dots) drawDots();
@@ -2948,7 +3072,7 @@ function tick() {
   if (M.done) return endMatchUI();
   if (!news.length && M.min % 7 === 3) { let a = pick(AMB); if (a === U.amb) a = AMB[(AMB.indexOf(a) + 1) % AMB.length]; U.amb = a; const li = document.createElement('li'); li.className = 'sys'; li.innerHTML = `<b>${M.min}'</b><span>${esc(a.replace('{t}', (R() < possOf(M) ? M.h : M.a).c.name))}</span>`; $('#mFeed').prepend(li); }
   if (M.pend) return schedule(900);
-  if (M.min === 45 && !U.htDone) { U.htDone = true; return setTimeout(halfSheet, 500); }
+  if (M.min === 45 && !U.htDone) { U.htDone = true; SFX.whistle(2, true); return setTimeout(halfSheet, 500); }
   const k = U.speed === 4 ? 2.8 : U.speed === 2 ? 1.5 : 1, big = news.some(e => e.t === 'gol');
   schedule((big ? 1700 : news.length ? 620 : 0) / k + { 1: 420, 2: 190, 4: 70 }[U.speed]);
 }
@@ -2956,6 +3080,7 @@ function endMatchUI() {
   const M = U.M;
   if (U.gl) { $('#mbar').innerHTML = '<button class="btn cta" data-a="mEnd" style="max-width:440px">Ver resumo</button>'; return; }
   if (M.pso) { const s = U.my.home ? M.pso.sc : [M.pso.sc[1], M.pso.sc[0]]; const li = document.createElement('li'); li.className = 'gol ' + (s[0] > s[1] ? '' : 'them'); li.innerHTML = `<b>pên</b><span>Decisão por pênaltis: ${s[0]}–${s[1]}. ${s[0] > s[1] ? 'Classificado!' : 'Eliminado.'}</span>`; $('#mFeed').prepend(li); }
+  SFX.whistle(3, true);
   $('#mCtl').style.display = 'block'; $('#mCtl').innerHTML = '<button class="btn cta" data-a="mEnd">Ver resumo</button>';
 }
 function statsHTML(M) { const my = U.my, op = U.op, ps = Math.round(100 * my.pos / Math.max(1, my.pos + op.pos)); return `<div>${kv('Finalizações', `${my.sh} × ${op.sh}`)}${kv('No gol', `${my.sot} × ${op.sot}`)}${kv('Posse de bola', `${ps}% × ${100 - ps}%`)}</div>`; }
@@ -2986,6 +3111,11 @@ function injSheet() {
 function showOv(html, foot) { $('#ov').innerHTML = `<div class="ovin"><div class="ovscroll">${html}</div>${foot ? `<div class="ovfoot">${foot}</div>` : ''}</div>`; $('#ov').classList.add('on'); }
 const hideOv = () => { $('#ov').classList.remove('on'); $('#ov').innerHTML = ''; };
 function showPost() {
+  const L = G.last;
+  if (L.out > 0) { SFX.win(); HAP.ok(); } else if (L.out < 0) { SFX.lose(); HAP.err(); } else SFX.draw();
+  return renderPost();
+}
+function renderPost() {
   const L = G.last, m = me(), o = G.clubs[L.opp], r = L.res, mh = L.home;
   const gm = mh ? r.gh : r.ga, go = mh ? r.ga : r.gh, ps = mh ? L.st.pos : 100 - L.st.pos, ix = mh ? 0 : 1;
   const pen = r.pso ? ` <small style="font-size:18px">(${mh ? r.pso[0] : r.pso[1]}–${mh ? r.pso[1] : r.pso[0]} pên.)</small>` : '';
@@ -3011,12 +3141,14 @@ function showReview() {
   `<button class="btn cta" data-a="season">Começar ${v.year + 1}</button>`);
 }
 function showOver() {
+  SFX.fired(); HAP.err();
   const best = G.hist.slice().sort((a, b) => a.div - b.div || a.pos - b.pos)[0];
   showOv(`<div class="title"><div class="clipboard stack"><div class="hand red">Carta da diretoria</div><div class="big">Demitido</div><p>${esc(G.over.why)}</p><div>${kv('Temporadas no comando', G.season)}${kv('Melhor campanha', best ? `${best.pos}º na ${DIV_N[best.div]} (${best.year})` : '—')}${kv('Troféus', G.trophies.length ? G.trophies.map(esc).join(', ') : 'nenhum')}</div><button class="btn cta" data-a="newCareer">Nova carreira</button></div></div>`);
 }
+const titleSndHTML = () => `${SND(SFX.enabled)} Som ${SFX.enabled ? 'ligado' : 'desligado'}`;
 function showTitle() {
   const sv = store.get(), has = sv && sv.v === 1 && sv.clubs;
-  showOv(`<div class="title"><div class="clipboard stack"><div class="hand">técnico, presidente e olheiro</div><div class="wordmark">Pran<br>che<i>ta</i></div><p>Monte o time, defina a tática, cuide do caixa e leve seu clube da Série B ao título.</p>${has ? `<button class="btn cta" data-a="cont">Continuar</button><button class="btn ghost" data-a="newCareer">Nova carreira</button>` : '<button class="btn cta" data-a="newCareer">Nova carreira</button>'}</div><p style="color:var(--chalk-2);font-size:13px;text-align:center">${has ? `${esc(sv.clubs[0].name)} · temporada ${sv.year} · semana ${sv.week}` : 'O progresso fica salvo neste navegador.'}</p></div>`);
+  showOv(`<div class="title"><div class="clipboard stack"><div class="hand">técnico, presidente e olheiro</div><div class="wordmark">Pran<br>che<i>ta</i></div><p>Monte o time, defina a tática, cuide do caixa e leve seu clube da Série B ao título.</p>${has ? `<button class="btn cta" data-a="cont">Continuar</button><button class="btn ghost" data-a="newCareer">Nova carreira</button>` : '<button class="btn cta" data-a="newCareer">Nova carreira</button>'}</div><p style="color:var(--chalk-2);font-size:13px;text-align:center">${has ? `${esc(sv.clubs[0].name)} · temporada ${sv.year} · semana ${sv.week}` : (NATIVE ? 'O progresso fica salvo no aparelho.' : 'O progresso fica salvo neste navegador.')}</p><div class="titlebar"><button class="chip board" data-a="titleSnd">${titleSndHTML()}</button></div></div>`);
 }
 const SW = ['#e8433a', '#b3122e', '#ff7a1a', '#f2d43a', '#1fa34a', '#0f5132', '#16b3b3', '#1f6fd1', '#0b1a3a', '#8a3df0', '#e05cff', '#111111', '#ffffff', '#c7a24a'];
 function showCreate() {
@@ -3043,14 +3175,14 @@ const ACT = {
   close() { closeSheet(); },
   tipOk() { G.tip = 1; done(); },
   toPend() { const it = pending()[0]; if (!it) return; if (U.tab !== 'home') { U.tab = 'home'; render(); } const el = $('#pend' + it.id); if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' }); toast('Responda as pendências antes de jogar.'); },
-  res(d) { const it = G.inbox.find(i => i.id === +d.id); resolve(it, +d.i); done(it.done); },
+  res(d) { const it = G.inbox.find(i => i.id === +d.id), m0 = G.money; resolve(it, +d.i); if (G.money > m0 + 30) { SFX.coin(); HAP.ok(); } else if (G.money < m0) SFX.pay(); else SFX.tap(); done(it.done); },
   play() { startMatch(); },
   // time
   slot(d) { if (Date.now() - (U.dragT || 0) < 400) return; slotMenu(+d.k); },
   pick(d) { pickSheet(+d.k); },
   place(d) { placeSheet(pl(+d.id)); },
-  put(d) { const m = me(), k = +d.k, id = +d.id, j = m.lineup.indexOf(id); if (j === k) return; if (j >= 0) m.lineup[j] = m.lineup[k]; m.lineup[k] = id; closeSheet(); const p = pl(id), code = codesOf(m)[k]; done(`${last(p.n)} de ${code} (${Math.round(ovrAt(p, code))}).`); },
-  auto() { autoLineup(me()); done('Melhor time escalado.'); },
+  put(d) { const m = me(), k = +d.k, id = +d.id, j = m.lineup.indexOf(id); if (j === k) return; if (j >= 0) m.lineup[j] = m.lineup[k]; m.lineup[k] = id; closeSheet(); SFX.drop(); HAP.med(); const p = pl(id), code = codesOf(m)[k]; done(`${last(p.n)} de ${code} (${Math.round(ovrAt(p, code))}).`); },
+  auto() { autoLineup(me()); SFX.drop(); HAP.med(); done('Melhor time escalado.'); },
   form(d) { setFormation(me(), d.v); done(); },
   more() { U.more = !U.more; render(); },
   style(d) { const m = me(); if (m.style === d.v) return; confirmSheet('Jogar em ' + STYLES[d.v].n.toLowerCase() + '?', `O entrosamento cai de ${Math.round(m.fam)}% para ${Math.round(m.fam * 0.78)}%.`, 'styleOk', d.v, 'Mudar estilo'); },
@@ -3066,23 +3198,27 @@ const ACT = {
   scout(d) { const p = pl(+d.id), e = scout(p); if (e) return toast(e); save(); playerSheet(p); render(); toast('Olheiro enviado. O relatório chega na semana que vem.'); },
   neg(d) { const p = pl(+d.id); prepAsk(p); U.neg = { pid: p.id, fee: clubOf(p.id) ? round5(p.ask * 0.9) : p.ask, wage: p.wask, yrs: 2, msg: '' }; negSheet(); },
   negY(d) { U.neg.yrs = +d.v; negSheet(); },
-  negSend() { const N = U.neg, p = pl(N.pid), r = bid(p, N.fee, N.wage, N.yrs); if (r.ok) { closeSheet(); return done(r.msg); } if (r.counter) { N.fee = r.counter.fee; N.wage = r.counter.wage; } N.msg = r.msg; save(); negSheet(); },
+  negSend() { const N = U.neg, p = pl(N.pid), r = bid(p, N.fee, N.wage, N.yrs); if (r.ok) { closeSheet(); SFX.pay(); setTimeout(good, 170); return done(r.msg); } bad(); if (r.counter) { N.fee = r.counter.fee; N.wage = r.counter.wage; } N.msg = r.msg; save(); negSheet(); },
   sell(d) { U.ask = null; sellSheet(pl(+d.id)); },
-  listOk(d) { const p = pl(+d.id); listFor(p, U.ask != null ? U.ask : p.list || valueOf(p) * 1.1); U.ask = null; closeSheet(); done(`${p.n} anunciado por ${money(p.list)}.`); },
+  listOk(d) { const p = pl(+d.id); listFor(p, U.ask != null ? U.ask : p.list || valueOf(p) * 1.1); U.ask = null; closeSheet(); good(); done(`${p.n} anunciado por ${money(p.list)}.`); },
   unlist(d) { const p = pl(+d.id); listFor(p, 0); U.ask = null; closeSheet(); done(`${p.n} saiu do mercado.`); },
   quick(d) { const p = pl(+d.id); confirmSheet(`Vender ${esc(last(p.n))} agora?`, `Ele sai do clube por ${money(quickPrice(p))} (valor de mercado: ${money(valueOf(p))}).`, 'quickOk', p.id, 'Vender agora', 'red'); },
-  quickOk(d) { const r = quickSell(pl(+d.v)); closeSheet(); done(r.msg); },
+  quickOk(d) { const r = quickSell(pl(+d.v)); closeSheet(); if (r.ok) { SFX.coin(); HAP.ok(); } else bad(); done(r.msg); },
   watch(d) { const id = +d.id, p = pl(id); G.watch = G.watch.includes(id) ? G.watch.filter(x => x !== id) : [...G.watch, id]; save(); render(); playerSheet(p); },
   sort(d) { U.sort = d.v; render(); },
   release(d) { const p = pl(+d.id); confirmSheet('Dispensar ' + esc(p.n) + '?', `A rescisão custa ${money(p.w * 6)}. Ele fica sem clube.`, 'releaseOk', p.id, 'Dispensar', 'red'); },
-  releaseOk(d) { const p = pl(+d.v), e = release(p); closeSheet(); done(e || p.n + ' foi dispensado.'); },
+  releaseOk(d) { const p = pl(+d.v), e = release(p); closeSheet(); if (e) bad(); else SFX.pay(); done(e || p.n + ' foi dispensado.'); },
   renewSheet(d) { const p = pl(+d.id), w = renewAsk(p); openSheet(`<h2 style="padding-right:36px">Renovar com ${esc(last(p.n))}</h2><div class="stack" style="margin-top:10px"><div>${kv('Salário atual', money(p.w) + ' por semana')}${kv('Ele pede', money(w) + ' por semana')}${kv('Contrato atual', 'até ' + ctrEnd(p))}</div><div class="btns">${[1, 2, 3].map(y => `<button class="btn" data-a="renew" data-id="${p.id}" data-y="${y}">Até ${G.year + y}</button>`).join('')}</div></div>`); },
-  renew(d) { const p = pl(+d.id), e = renew(p, +d.y); closeSheet(); done(e || `${p.n} renovou até ${ctrEnd(p)}.`); },
-  promote(d) { const p = pl(+d.id), e = promote(p); closeSheet(); done(e || p.n + ' subiu para o elenco.'); },
+  renew(d) { const p = pl(+d.id), e = renew(p, +d.y); closeSheet(); if (e) bad(); else good(); done(e || `${p.n} renovou até ${ctrEnd(p)}.`); },
+  promote(d) { const p = pl(+d.id), e = promote(p); closeSheet(); if (e) bad(); else good(); done(e || p.n + ' subiu para o elenco.'); },
   dismiss(d) { const p = pl(+d.id); G.youth = G.youth.filter(x => x !== p); closeSheet(); done(p.n + ' deixou a base.'); },
   // clube
   price(d) { G.price = clamp(G.price + +d.v, 10, 200); done(); },
-  fac(d) { const f = FAC.find(x => x.id === d.id), l = G.fac[f.id]; if (l >= 4 || G.money < f.cost[l]) return; spend('Obras', f.cost[l]); G.fac[f.id]++; done(f.n + ' ampliado.'); },
+  fac(d) { const f = FAC.find(x => x.id === d.id), l = G.fac[f.id]; if (l >= 4 || G.money < f.cost[l]) return; spend('Obras', f.cost[l]); G.fac[f.id]++; SFX.pay(); setTimeout(good, 170); done(f.n + ' ampliado.'); },
+  snd(d) { SFX.init(); SFX.setEnabled(d.v === '1'); if (SFX.enabled) SFX.ok(); render(); },
+  vib(d) { HAP.set(d.v === '1'); render(); },
+  install() { const e = INSTALL.evt; if (!e) return; INSTALL.evt = null; e.prompt(); e.userChoice.then(() => render(), () => render()); },
+  titleSnd() { SFX.init(); SFX.setEnabled(!SFX.enabled); if (SFX.enabled) SFX.ok(); const b = $('#ov [data-a="titleSnd"]'); if (b) b.innerHTML = titleSndHTML(); },
   tema(d) { setTema(d.v); try { if (U.tema) localStorage.setItem(TEMA_KEY, U.tema); else localStorage.removeItem(TEMA_KEY); } catch (e) { /* vale só nesta visita */ } render(); },
   wipe() { confirmSheet('Encerrar esta carreira?', 'O jogo salvo será apagado. Não dá para desfazer.', 'wipeOk', 1, 'Apagar e recomeçar', 'red'); },
   wipeOk() { closeSheet(); store.del(); G = null; ACT.newCareer(); },
@@ -3100,25 +3236,33 @@ const ACT = {
   injIn(d) { const M = U.M, { S, o } = M.pend; doSub(M, S, o, pl(+d.id), ''); M.pend = null; if (!U.gl) drawDots(); closeSheet(); },
   talk(d) { const msg = talk(U.M, U.my, d.v); openSheet(`<h2><span>Intervalo</span></h2><p class="hand" style="margin:12px 0">${msg}</p><div class="btns"><button class="btn ghost" data-a="mBoard">Mexer no time</button><button class="btn" data-a="close">Voltar ao jogo</button></div>`); },
   mEnd() { const M = U.M; if (!M) return; if (U.gl) { GL.stop(); $('#stage').classList.remove('on'); } U.M = null; afterUserMatch(M); G.stage = 'post'; save(); showPost(); },
-  week() { endWeek(); G.stage = ''; save(); if (G.over) return showOver(); if (G.review) return showReview(); hideOv(); U.tab = 'home'; U.view = ''; render(); },
-  rvRenew(d) { const p = pl(+d.id), e = renew(p, 2); save(); if (e) toast(e); else toast(`${p.n} renovou até ${ctrEnd(p)}.`); showReview(); },
-  season() { nextSeason(); save(); hideOv(); U.tab = 'home'; U.view = ''; U.div = me().div; render(); },
+  week() { endWeek(); G.stage = ''; save(); if (G.over) return showOver(); if (G.review) { const v = G.review; if (v.promoted || v.trophies.length) SFX.fanfare(); else if (v.relegated) SFX.lose(); else SFX.ok(); return showReview(); } hideOv(); U.tab = 'home'; U.view = ''; render(); if (pending().length) setTimeout(() => { SFX.notify(); HAP.tap(); }, 260); else SFX.tap(); },
+  rvRenew(d) { const p = pl(+d.id), e = renew(p, 2); save(); if (e) bad(); else good(); if (e) toast(e); else toast(`${p.n} renovou até ${ctrEnd(p)}.`); showReview(); },
+  season() { nextSeason(); save(); SFX.whistle(1); hideOv(); U.tab = 'home'; U.view = ''; U.div = me().div; render(); },
   // título e criação
   cont() { const sv = store.get(); if (!sv) return showTitle(); G = sv; reindex(); enter(); },
   newCareer() { const k = pick(SW.slice(0, 11)); U.cr = { name: '', abbr: '', c1: k, c2: pick(['#ffffff', '#111111', '#f2d43a'].filter(x => x !== k)), crest: ri(0, 3), pat: ri(0, 3), auto: true }; showCreate(); },
   crSet(d) { U.cr[d.k] = d.k === 'crest' || d.k === 'pat' ? +d.v : d.v; showCreate(); },
   crRand() { const c = U.cr, n = pick(['Aurora', 'Estrela', 'União', 'Guarani', 'Operário', 'Vila Nova', 'Bandeirante', 'Farol', 'Jangada', 'Trovão', 'Cruzeiro do Sul', 'Laranjal']) + ' ' + pick(['FC', 'EC', 'SC', 'Atlético', 'Esporte']); Object.assign(c, { name: n, abbr: abbrOf(n), c1: pick(SW), crest: ri(0, 3), pat: ri(0, 3), auto: true }); c.c2 = pick(SW.filter(x => colDist(x, c.c1) > 200)); showCreate(); },
-  crGo() { const c = U.cr, name = (c.name || '').trim() || 'Prancheta FC'; newGame({ name, abbr: (c.abbr || abbrOf(name)).toUpperCase(), c1: c.c1, c2: c.c2, crest: c.crest, pat: c.pat }); save(); enter(); }
+  crGo() { SFX.fanfare(); HAP.ok(); const c = U.cr, name = (c.name || '').trim() || 'Prancheta FC'; newGame({ name, abbr: (c.abbr || abbrOf(name)).toUpperCase(), c1: c.c1, c2: c.c2, crest: c.crest, pat: c.pat }); save(); enter(); }
 };
 function enter() {
   U.tab = 'home'; U.view = ''; U.div = me().div;
   render();
   if (G.over) showOver(); else if (G.review) showReview(); else if (G.stage === 'post' && G.last) showPost(); else hideOv();
 }
-document.addEventListener('click', e => { const b = e.target.closest('[data-a]'); if (!b || b.disabled) return; const fn = ACT[b.dataset.a]; if (fn) { e.preventDefault(); fn(b.dataset, b); } });
+// som e vibração de cada toque; ações com resultado (compra, venda, gol...) tocam o próprio som
+const SND_SEL = new Set(['sub', 'filt', 'sort', 'div', 'form', 'style', 'ment', 'train', 'intens', 'tema', 'negY', 'gSpeed', 'gCam', 'mMent', 'crSet', 'more', 'watch', 'unlist', 'vib']);
+const SND_OWN = new Set(['close', 'put', 'auto', 'negSend', 'listOk', 'quickOk', 'releaseOk', 'renew', 'rvRenew', 'promote', 'fac', 'mEnd', 'week', 'season', 'crGo', 'gSnd', 'snd', 'res', 'none']);
+function uiSound(a) {
+  if (a === 'go') { SFX.tab(); HAP.tap(); } else if (SND_SEL.has(a)) { SFX.select(); HAP.tap(); } else if (!SND_OWN.has(a)) SFX.tap();
+  if (a === 'close') SFX.close();
+}
+const good = () => { SFX.ok(); HAP.ok(); }, bad = () => { SFX.err(); HAP.err(); };
+document.addEventListener('click', e => { const b = e.target.closest('[data-a]'); if (!b || b.disabled) return; const fn = ACT[b.dataset.a]; if (fn) { e.preventDefault(); SFX.init(); uiSound(b.dataset.a); fn(b.dataset, b); } });
 // ímãs: toque abre o menu; pressionar ~0,25 s "descola" o ímã e aí ele pode ser arrastado
 let DR = null;
-function armMagnet() { if (!DR) return; DR.armed = true; DR.el.classList.add('lift'); $('#board').classList.add('dragging'); try { if (navigator.vibrate) navigator.vibrate(12); } catch (x) { /* sem vibração */ } }
+function armMagnet() { if (!DR) return; DR.armed = true; DR.el.classList.add('lift'); $('#board').classList.add('dragging'); SFX.pick(); HAP.med(); }
 document.addEventListener('pointerdown', e => {
   SFX.init();
   const el = e.target.closest('#board .slot'); if (!el || !G) return;
@@ -3141,12 +3285,14 @@ function dropMagnet(e) {
   const d = DR; DR = null; clearTimeout(d.t);
   if (d.armed || d.cancel) U.dragT = Date.now();
   d.el.classList.remove('lift'); const b = $('#board'); if (b) b.classList.remove('dragging');
-  if (d.moved) { save(); render(); }
+  if (d.moved) { SFX.drop(); HAP.tap(); save(); render(); } else if (d.armed) SFX.drop();
 }
 document.addEventListener('pointerup', dropMagnet);
 document.addEventListener('pointercancel', dropMagnet);
+document.addEventListener('change', e => { if (e.target.id === 'vol') SFX.select(); });
 document.addEventListener('input', e => {
   const t = e.target;
+  if (t.id === 'vol') { SFX.setVolume(+t.value / 100); }
   if (t.id === 'negFee') { U.neg.fee = +t.value; $('#negFeeV').textContent = money(U.neg.fee); }
   if (t.id === 'negWage') { U.neg.wage = +t.value; $('#negWageV').textContent = money(U.neg.wage); }
   if (t.id === 'negFee' || t.id === 'negWage') { const p = pl(U.neg.pid), ch = bidChance(p, U.neg.fee, U.neg.wage); if ($('#chFee')) $('#chFee').innerHTML = chTxt(ch.fee); $('#chWage').innerHTML = chTxt(ch.wage); $('#negSum').innerHTML = negSum(clubOf(p.id) ? U.neg.fee : p.ask, U.neg.wage); }

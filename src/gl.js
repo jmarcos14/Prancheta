@@ -3,105 +3,6 @@
 // campo, bonecos, bola, partículas, câmera e som sintetizado.
 // Uma "direção de cena" anima os lances que o motor de regras decide.
 // =====================================================================
-const SFX = (() => {
-  let ctx = null, master = null, crowdGain = null, crowdBand = null, chantGain = null, drumBus = null, noiseBuf = null, brownBuf = null;
-  let enabled = (() => { try { return localStorage.getItem('prancheta2.som') !== '0'; } catch (e) { return true; } })();
-  let level = 0.3, drums = 0, nextBeat = 0, beat = 0, lastKick = 0;
-  const now = () => ctx.currentTime;
-  function makeNoise(brown) {
-    const len = ctx.sampleRate * 3, buf = ctx.createBuffer(2, len, ctx.sampleRate);
-    for (let ch = 0; ch < 2; ch++) { const d = buf.getChannelData(ch); let l = 0; for (let i = 0; i < len; i++) { const w = Math.random() * 2 - 1; if (brown) { l = (l + 0.02 * w) / 1.02; d[i] = l * 3.5; } else d[i] = w; } }
-    return buf;
-  }
-  function init() {
-    if (ctx) { if (ctx.state === 'suspended') ctx.resume(); return; }
-    const AC = window.AudioContext || window.webkitAudioContext; if (!AC) return;
-    try { ctx = new AC(); } catch (e) { ctx = null; return; }
-    master = ctx.createGain(); master.gain.value = enabled ? 0.85 : 0;
-    const comp = ctx.createDynamicsCompressor(); comp.threshold.value = -14; comp.ratio.value = 4;
-    master.connect(comp); comp.connect(ctx.destination);
-    noiseBuf = makeNoise(false); brownBuf = makeNoise(true);
-    const src = ctx.createBufferSource(); src.buffer = brownBuf; src.loop = true;
-    crowdBand = ctx.createBiquadFilter(); crowdBand.type = 'bandpass'; crowdBand.frequency.value = 650; crowdBand.Q.value = 0.55;
-    const lp = ctx.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 2600;
-    crowdGain = ctx.createGain(); crowdGain.gain.value = 0;
-    const lfo = ctx.createOscillator(), lfoG = ctx.createGain(); lfo.frequency.value = 0.11; lfoG.gain.value = 140; lfo.connect(lfoG); lfoG.connect(crowdBand.frequency); lfo.start();
-    src.connect(crowdBand); crowdBand.connect(lp); lp.connect(crowdGain); crowdGain.connect(master); src.start();
-    const src2 = ctx.createBufferSource(); src2.buffer = noiseBuf; src2.loop = true;
-    const f1 = ctx.createBiquadFilter(); f1.type = 'bandpass'; f1.frequency.value = 520; f1.Q.value = 6;
-    const f2 = ctx.createBiquadFilter(); f2.type = 'bandpass'; f2.frequency.value = 900; f2.Q.value = 7;
-    chantGain = ctx.createGain(); chantGain.gain.value = 0;
-    const lfo2 = ctx.createOscillator(), lg2 = ctx.createGain(); lfo2.frequency.value = 1.85; lg2.gain.value = 0.5;
-    const chantAmp = ctx.createGain(); chantAmp.gain.value = 0.5; lfo2.connect(lg2); lg2.connect(chantAmp.gain); lfo2.start();
-    src2.connect(f1); src2.connect(f2); f1.connect(chantAmp); f2.connect(chantAmp); chantAmp.connect(chantGain); chantGain.connect(master); src2.start();
-    drumBus = ctx.createGain(); drumBus.gain.value = 0; drumBus.connect(master);
-    nextBeat = now() + 0.1;
-  }
-  function env(g, t, a, peak, hold, rel) { g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(peak, t + a); g.gain.setValueAtTime(peak, t + a + hold); g.gain.exponentialRampToValueAtTime(0.0001, t + a + hold + rel); }
-  function noiseHit(t, type, freq, q, peak, a, hold, rel, dest) {
-    const s = ctx.createBufferSource(); s.buffer = noiseBuf; s.playbackRate.value = 0.8 + Math.random() * 0.4;
-    const f = ctx.createBiquadFilter(); f.type = type; f.frequency.value = freq; f.Q.value = q;
-    const g = ctx.createGain(); env(g, t, a, peak, hold, rel);
-    s.connect(f); f.connect(g); g.connect(dest || master); s.start(t, Math.random() * 2); s.stop(t + a + hold + rel + 0.05);
-    return f;
-  }
-  function tone(t, type, f0, f1, peak, a, hold, rel, dest) {
-    const o = ctx.createOscillator(); o.type = type; o.frequency.setValueAtTime(f0, t); if (f1) o.frequency.exponentialRampToValueAtTime(f1, t + a + hold + rel);
-    const g = ctx.createGain(); env(g, t, a, peak, hold, rel);
-    o.connect(g); g.connect(dest || master); o.start(t); o.stop(t + a + hold + rel + 0.05);
-  }
-  function scheduleDrums() {
-    const spb = 60 / 116 / 4;
-    while (nextBeat < now() + 0.25) {
-      const t = nextBeat, s = beat % 16;
-      if (drums > 0.03) {
-        if (s === 0 || s === 8) tone(t, 'sine', 95, 52, 0.55, 0.004, 0.02, 0.28, drumBus);
-        if (s === 6 || s === 14) tone(t, 'sine', 80, 48, 0.35, 0.004, 0.02, 0.22, drumBus);
-        if (s % 2 === 0 || Math.random() < 0.3) noiseHit(t, 'highpass', 1800, 0.7, s % 4 === 2 ? 0.22 : 0.09, 0.002, 0.01, 0.06, drumBus);
-        if ([3, 6, 10, 13].includes(s)) tone(t, 'square', 1180, 0, 0.05, 0.002, 0.01, 0.05, drumBus);
-      }
-      nextBeat += spb; beat++;
-    }
-  }
-  const api = {
-    init,
-    get enabled() { return enabled; },
-    setEnabled(v) { enabled = v; try { localStorage.setItem('prancheta2.som', v ? '1' : '0'); } catch (e) { /* só nesta visita */ } if (master) master.gain.setTargetAtTime(v ? 0.85 : 0, now(), 0.05); },
-    update(dt, lvl, playing, drumLvl) {
-      if (!ctx) return;
-      level += (lvl - level) * Math.min(1, dt * 1.6); drums += ((drumLvl || 0) - drums) * Math.min(1, dt * 1.2);
-      crowdGain.gain.setTargetAtTime(playing ? 0.05 + level * 0.32 : 0.0001, now(), 0.25);
-      crowdBand.frequency.setTargetAtTime(560 + level * 500, now(), 0.4);
-      chantGain.gain.setTargetAtTime(playing ? 0.02 + drums * 0.05 : 0, now(), 0.5);
-      drumBus.gain.setTargetAtTime(playing ? drums * 0.5 : 0, now(), 0.4);
-      scheduleDrums();
-    },
-    whistle(n = 1, long = false) {
-      if (!ctx) return;
-      let t = now() + 0.02;
-      for (let k = 0; k < n; k++) {
-        const dur = long && k === n - 1 ? 0.75 : long ? 0.32 : 0.24;
-        const o = ctx.createOscillator(); o.type = 'sine'; o.frequency.value = 2950;
-        const fm = ctx.createOscillator(), fg = ctx.createGain(); fm.frequency.value = 31; fg.gain.value = 140; fm.connect(fg); fg.connect(o.frequency);
-        const g = ctx.createGain(); env(g, t, 0.012, 0.16, dur, 0.06);
-        const bp = ctx.createBiquadFilter(); bp.type = 'bandpass'; bp.frequency.value = 2950; bp.Q.value = 2;
-        o.connect(bp); bp.connect(g); g.connect(master); o.start(t); fm.start(t); o.stop(t + dur + 0.12); fm.stop(t + dur + 0.12);
-        t += dur + 0.14;
-      }
-    },
-    kick(power) { if (!ctx || now() - lastKick < 0.05) return; lastKick = now(); const p = Math.max(0.15, Math.min(1, power)), t = now(); tone(t, 'sine', 160 + p * 60, 48, 0.18 + p * 0.3, 0.003, 0.01, 0.09); noiseHit(t, 'highpass', 2200, 0.8, 0.05 + p * 0.08, 0.001, 0.005, 0.03); },
-    post() { if (!ctx) return; const t = now(); [520, 1335, 2390, 3110].forEach((f, i) => tone(t, 'sine', f, 0, 0.12 / (i + 1), 0.002, 0.01, 0.9 - i * 0.15)); },
-    roar(strength = 1, dur = 2.2) { if (!ctx) return; const t = now(); noiseHit(t, 'bandpass', 750, 0.45, 0.55 * strength, 0.25, dur, 1.6); noiseHit(t + 0.05, 'bandpass', 1900, 0.9, 0.2 * strength, 0.3, dur * 0.8, 1.4); noiseHit(t, 'lowpass', 300, 0.7, 0.3 * strength, 0.3, dur, 1.5); },
-    ooh(strength = 1) { if (!ctx) return; const t = now(); const f = noiseHit(t, 'bandpass', 320, 4, 0.32 * strength, 0.25, 0.5, 0.9); f.frequency.setValueAtTime(320, t); f.frequency.linearRampToValueAtTime(820, t + 0.45); f.frequency.linearRampToValueAtTime(480, t + 1.4); noiseHit(t, 'bandpass', 700, 0.6, 0.12 * strength, 0.2, 0.5, 0.8); },
-    groan() { if (!ctx) return; const t = now(); const f = noiseHit(t, 'bandpass', 520, 3, 0.25, 0.1, 0.4, 1.1); f.frequency.setValueAtTime(520, t); f.frequency.exponentialRampToValueAtTime(220, t + 1.4); },
-    boo() { if (!ctx) return; const t = now(); noiseHit(t, 'bandpass', 240, 3.5, 0.22, 0.2, 0.9, 0.7); tone(t, 'sawtooth', 118, 105, 0.03, 0.2, 0.9, 0.6); },
-    horn() { if (!ctx) return; [0, 0.75].forEach(d => { const t = now() + d; const lp = ctx.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 1900; lp.connect(master); [233, 294, 349].forEach(f => tone(t, 'sawtooth', f, 0, 0.06, 0.03, 0.5, 0.15, lp)); }); },
-    cheer(s = 0.5) { if (ctx) api.roar(s, 0.5); },
-    goal(mine, home) { if (!ctx) return; if (mine) { api.roar(home ? 1 : 0.55, 2.8); if (home) api.horn(); drums = 1; } else if (home) api.groan(); else { api.roar(0.9, 2.4); api.horn(); } }
-  };
-  return api;
-})();
-
 const GL = (() => {
   const TAU = Math.PI * 2, lerp = (a, b, t) => a + (b - a) * t;
   const easeOut = t => 1 - Math.pow(1 - t, 3);
@@ -780,7 +681,7 @@ const GL = (() => {
     for (let i = 0; i < 3; i++) ring(tx, gy, i === 1 ? '#ffffff' : col, 2, 22 + i * 7, 0.9 + i * 0.15, i * 0.12);
     if (my) confetti(tx, gy - 2 * dir, [col, '#ffffff', '#ffd23f', '#3ee8d0'], 170, 28);
     V.shake = Math.max(V.shake, reduceMotion ? 0.3 : 1.2); V.mood = 3;
-    try { if (navigator.vibrate) navigator.vibrate(my ? [30, 40, 60] : 40); } catch (x) { /* sem vibração */ }
+    HAP.goal(my);
     big('Gol!', `${e.n}, ${e.m}'`, my ? '#ffffff' : col);
     tick(e.m, '⚽ ' + e.x);
     SFX.goal(my, V.home);

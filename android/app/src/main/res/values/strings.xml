@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Prancheta</string>
+    <string name="title_activity_main">Prancheta</string>
+    <string name="package_name">br.prancheta.manager</string>
+    <string name="custom_url_scheme">br.prancheta.manager</string>
+</resources>

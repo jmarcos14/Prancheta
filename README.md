@@ -4,7 +4,9 @@ Jogo de gestão de futebol para celular, em um único arquivo HTML. Você funda 
 
 ## Como jogar
 
-Abra `index.html` no navegador. O progresso é salvo no próprio navegador a cada semana.
+- **No celular Android (app):** baixe o APK gerado pelo GitHub Actions (aba *Actions* › workflow *App Android* › artefato `prancheta-android-apk`), descompacte e instale o `app-debug.apk`. O Android pede para permitir a instalação de fontes desconhecidas.
+- **Como PWA (Android e iPhone):** publique a pasta `www/` em qualquer hospedagem com HTTPS e abra no navegador. No Android, use *Instalar app*; no iPhone, *Compartilhar › Adicionar à Tela de Início*. Depois da primeira visita funciona sem internet.
+- **No navegador:** abra `index.html`. O progresso é salvo no próprio aparelho a cada semana.
 
 ## O que tem no jogo
 
@@ -16,11 +18,21 @@ Abra `index.html` no navegador. O progresso é salvo no próprio navegador a cad
 - **Clube**: bilheteria com preço do ingresso, patrocínio, cota de TV, premiações e 6 estruturas para ampliar.
 - **Carreira**: metas da diretoria, confiança, reputação, Série A e B com acesso e rebaixamento, Copa Nacional em mata-mata.
 
+## Som e app
+
+- Efeitos sonoros sintetizados na hora (sem arquivos de áudio): torcida, apito, chute, trave e gol na partida; toques, abas, ímãs, compra, venda, propostas, vitória, derrota, fim de temporada e demissão na interface. Liga, desliga e volume em *Clube › Carreira › Som e vibração*.
+- No app Android: vibração nativa, botão Voltar fecha janelas e volta ao início, a partida pausa ao sair do app, tela em retrato, ícone e abertura próprios.
+
 ## Código
 
 - `src/engine.js`: regras do jogo, sem DOM.
 - `src/gl.js`: partida em 3D (cena, direção dos lances e som).
 - `src/ui.js`: telas e interação.
 - `src/style.css`: visual.
-- `build.js`: junta tudo em `index.html` (`node build.js`).
+- `src/sfx.js`: sons sintetizados (partida e interface).
+- `src/app.js`: integração com o celular (vibração, botão Voltar, pausa, PWA).
+- `build.js`: gera `index.html` (arquivo único, usa CDN) e `www/` (app offline com three.js, fontes, ícones, manifesto e service worker). Rode `npm install` antes.
+- `android/`: projeto Android do Capacitor. `npm run android` atualiza o projeto; `npm run apk` compila com o Android SDK instalado.
+- `assets/`: ícones do app. `tools/make-icons.js` gera ícones e telas de abertura (precisa do Playwright).
+- `.github/workflows/android.yml`: compila o APK no GitHub a cada envio.
 - `docs/mecanicas-jogos-gestao-futebol.md`: pesquisa de mecânicas que serviu de base.
